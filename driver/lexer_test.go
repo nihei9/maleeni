@@ -77,6 +77,24 @@ func TestLexer_Next(t *testing.T) {
 				newEOFToken(),
 			},
 		},
+		{
+			regexps: [][]byte{
+				[]byte("[ab.*|()[\\]]"),
+			},
+			src: "ab.*|()[]",
+			tokens: []*Token{
+				newToken(1, []byte("a")),
+				newToken(1, []byte("b")),
+				newToken(1, []byte(".")),
+				newToken(1, []byte("*")),
+				newToken(1, []byte("|")),
+				newToken(1, []byte("(")),
+				newToken(1, []byte(")")),
+				newToken(1, []byte("[")),
+				newToken(1, []byte("]")),
+				newEOFToken(),
+			},
+		},
 	}
 	for _, tt := range test {
 		res := map[int][]byte{}

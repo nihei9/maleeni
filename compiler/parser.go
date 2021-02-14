@@ -155,9 +155,31 @@ func (p *parser) parseGroup() astNode {
 		defer p.expect(tokenKindGroupClose)
 		return p.parseAlt()
 	}
+	return p.parseSingleChar()
+}
+
+func (p *parser) parseSingleChar() astNode {
 	if p.consume(tokenKindAnyChar) {
 		return genAnyCharAST(p.lastTok)
 	}
+	if p.consume(tokenKindBExpOpen) {
+		defer p.expect(tokenKindBExpClose)
+		left := p.parseNormalChar()
+		if left == nil {
+			raiseSyntaxError("bracket expression must include at least one character")
+		}
+		for {
+			right := p.parseNormalChar()
+			if right == nil {
+				break
+			}
+			left = newAltNode(left, right)
+		}
+		return left
+	}
+	return p.parseNormalChar()
+}
+func (p *parser) parseNormalChar() astNode {
 	if !p.consume(tokenKindChar) {
 		return nil
 	}
@@ -303,12 +325,9 @@ func (p *parser) consume(expected tokenKind) bool {
 		tok = p.peekedTok
 		p.peekedTok = nil
 	} else {
-		for {
-			tok, err = p.lex.next()
-			if err != nil {
-				panic(err)
-			}
-			break
+		tok, err = p.lex.next()
+		if err != nil {
+			panic(err)
 		}
 	}
 	p.lastTok = tok

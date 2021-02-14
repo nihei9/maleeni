@@ -15,6 +15,8 @@ const (
 	tokenKindAlt        = tokenKind("|")
 	tokenKindGroupOpen  = tokenKind("(")
 	tokenKindGroupClose = tokenKind(")")
+	tokenKindBExpOpen   = tokenKind("[")
+	tokenKindBExpClose  = tokenKind("]")
 	tokenKindEOF        = tokenKind("eof")
 )
 
@@ -32,11 +34,19 @@ func newToken(kind tokenKind, char rune) *token {
 	}
 }
 
+type lexerMode string
+
+const (
+	lexerModeDefault = lexerMode("default")
+	lexerModeBExp    = lexerMode("bracket expression")
+)
+
 type lexer struct {
 	src        *bufio.Reader
 	lastChar   rune
 	prevChar   rune
 	reachedEOF bool
+	mode       lexerMode
 }
 
 func newLexer(src io.Reader) *lexer {
@@ -45,6 +55,7 @@ func newLexer(src io.Reader) *lexer {
 		lastChar:   nullChar,
 		prevChar:   nullChar,
 		reachedEOF: false,
+		mode:       lexerModeDefault,
 	}
 }
 
@@ -57,6 +68,15 @@ func (l *lexer) next() (*token, error) {
 		return newToken(tokenKindEOF, nullChar), nil
 	}
 
+	switch l.mode {
+	case lexerModeBExp:
+		return l.nextInBExp(c)
+	default:
+		return l.nextInDefault(c)
+	}
+}
+
+func (l *lexer) nextInDefault(c rune) (*token, error) {
 	switch c {
 	case '*':
 		return newToken(tokenKindRepeat, nullChar), nil
@@ -68,6 +88,11 @@ func (l *lexer) next() (*token, error) {
 		return newToken(tokenKindGroupOpen, nullChar), nil
 	case ')':
 		return newToken(tokenKindGroupClose, nullChar), nil
+	case '[':
+		l.mode = lexerModeBExp
+		return newToken(tokenKindBExpOpen, nullChar), nil
+	case ']':
+		return newToken(tokenKindBExpClose, nullChar), nil
 	case '\\':
 		c, eof, err := l.read()
 		if err != nil {
@@ -79,7 +104,35 @@ func (l *lexer) next() (*token, error) {
 			}
 		}
 		switch {
-		case c == '\\' || c == '.' || c == '*' || c == '|' || c == '(' || c == ')':
+		case c == '\\' || c == '.' || c == '*' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']':
+			return newToken(tokenKindChar, c), nil
+		default:
+			return nil, &SyntaxError{
+				message: fmt.Sprintf("invalid escape sequence '\\%s'", string(c)),
+			}
+		}
+	default:
+		return newToken(tokenKindChar, c), nil
+	}
+}
+
+func (l *lexer) nextInBExp(c rune) (*token, error) {
+	switch c {
+	case ']':
+		l.mode = lexerModeDefault
+		return newToken(tokenKindBExpClose, nullChar), nil
+	case '\\':
+		c, eof, err := l.read()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			return nil, &SyntaxError{
+				message: "incompleted escape sequence; unexpected EOF follows \\ character",
+			}
+		}
+		switch {
+		case c == '\\' || c == ']':
 			return newToken(tokenKindChar, c), nil
 		default:
 			return nil, &SyntaxError{
