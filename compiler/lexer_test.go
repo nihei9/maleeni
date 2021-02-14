@@ -31,8 +31,9 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the special characters",
-			src:     "*|()",
+			src:     ".*|()",
 			tokens: []*token{
+				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
 				newToken(tokenKindAlt, nullChar),
 				newToken(tokenKindGroupOpen, nullChar),
@@ -42,9 +43,10 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the escape sequences",
-			src:     "\\\\\\*\\|\\(\\)",
+			src:     "\\\\\\.\\*\\|\\(\\)",
 			tokens: []*token{
 				newToken(tokenKindChar, '\\'),
+				newToken(tokenKindChar, '.'),
 				newToken(tokenKindChar, '*'),
 				newToken(tokenKindChar, '|'),
 				newToken(tokenKindChar, '('),

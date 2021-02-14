@@ -10,6 +10,7 @@ type tokenKind string
 
 const (
 	tokenKindChar       = tokenKind("char")
+	tokenKindAnyChar    = tokenKind(".")
 	tokenKindRepeat     = tokenKind("*")
 	tokenKindAlt        = tokenKind("|")
 	tokenKindGroupOpen  = tokenKind("(")
@@ -59,6 +60,8 @@ func (l *lexer) next() (*token, error) {
 	switch c {
 	case '*':
 		return newToken(tokenKindRepeat, nullChar), nil
+	case '.':
+		return newToken(tokenKindAnyChar, nullChar), nil
 	case '|':
 		return newToken(tokenKindAlt, nullChar), nil
 	case '(':
@@ -76,7 +79,7 @@ func (l *lexer) next() (*token, error) {
 			}
 		}
 		switch {
-		case c == '\\' || c == '*' || c == '|' || c == '(' || c == ')':
+		case c == '\\' || c == '.' || c == '*' || c == '|' || c == '(' || c == ')':
 			return newToken(tokenKindChar, c), nil
 		default:
 			return nil, &SyntaxError{

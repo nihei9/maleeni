@@ -110,13 +110,20 @@ func TestParser(t *testing.T) {
 	}
 
 	{
+		entry := func(v byte) byteRange {
+			return byteRange{
+				from: v,
+				to:   v,
+			}
+		}
+
 		expectedSymTab := &symbolTable{
-			symPos2Byte: map[symbolPosition]byte{
-				symPos(1): byte('a'),
-				symPos(2): byte('b'),
-				symPos(3): byte('a'),
-				symPos(4): byte('b'),
-				symPos(5): byte('b'),
+			symPos2Byte: map[symbolPosition]byteRange{
+				symPos(1): entry(byte('a')),
+				symPos(2): entry(byte('b')),
+				symPos(3): entry(byte('a')),
+				symPos(4): entry(byte('b')),
+				symPos(5): entry(byte('b')),
 			},
 			endPos2ID: map[symbolPosition]int{
 				endPos(6): 1,
@@ -187,7 +194,7 @@ func testSymbolTable(t *testing.T, expected, actual *symbolTable) {
 			t.Errorf("a symbol position entry was not found: %v -> %v", ePos, eByte)
 			continue
 		}
-		if byte != eByte {
+		if byte.from != eByte.from || byte.to != eByte.to {
 			t.Errorf("unexpected symbol position entry; want: %v -> %v, got: %v -> %v", ePos, eByte, ePos, byte)
 		}
 	}

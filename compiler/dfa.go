@@ -29,11 +29,13 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 					if pos.isEndMark() {
 						continue
 					}
-					symVal := int(symTab.symPos2Byte[pos])
-					if tranTabOfState[symVal] == nil {
-						tranTabOfState[symVal] = newSymbolPositionSet()
+					valRange := symTab.symPos2Byte[pos]
+					for symVal := valRange.from; symVal <= valRange.to; symVal++ {
+						if tranTabOfState[symVal] == nil {
+							tranTabOfState[symVal] = newSymbolPositionSet()
+						}
+						tranTabOfState[symVal].merge(follow[pos])
 					}
-					tranTabOfState[symVal].merge(follow[pos])
 				}
 				for _, t := range tranTabOfState {
 					if t == nil {

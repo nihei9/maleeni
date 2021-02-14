@@ -22,13 +22,13 @@ func raiseSyntaxError(message string) {
 }
 
 type symbolTable struct {
-	symPos2Byte map[symbolPosition]byte
+	symPos2Byte map[symbolPosition]byteRange
 	endPos2ID   map[symbolPosition]int
 }
 
 func genSymbolTable(root astNode) *symbolTable {
 	symTab := &symbolTable{
-		symPos2Byte: map[symbolPosition]byte{},
+		symPos2Byte: map[symbolPosition]byteRange{},
 		endPos2ID:   map[symbolPosition]int{},
 	}
 	return genSymTab(symTab, root)
@@ -41,7 +41,10 @@ func genSymTab(symTab *symbolTable, node astNode) *symbolTable {
 
 	switch n := node.(type) {
 	case *symbolNode:
-		symTab.symPos2Byte[n.pos] = n.value
+		symTab.symPos2Byte[n.pos] = byteRange{
+			from: n.from,
+			to:   n.to,
+		}
 	case *endMarkerNode:
 		symTab.endPos2ID[n.pos] = n.id
 	default:
@@ -152,6 +155,9 @@ func (p *parser) parseGroup() astNode {
 		defer p.expect(tokenKindGroupClose)
 		return p.parseAlt()
 	}
+	if p.consume(tokenKindAnyChar) {
+		return genAnyCharAST(p.lastTok)
+	}
 	if !p.consume(tokenKindChar) {
 		return nil
 	}
@@ -185,6 +191,101 @@ func (p *parser) parseGroup() astNode {
 			newSymbolNode(p.lastTok, b[3], symbolPositionNil),
 		)
 	}
+}
+
+// Refelences:
+// * https://www.unicode.org/versions/Unicode13.0.0/ch03.pdf#G7404
+//   * Table 3-6.  UTF-8 Bit Distribution
+//   * Table 3-7.  Well-Formed UTF-8 Byte Sequences
+func genAnyCharAST(tok *token) astNode {
+	return newAltNode(
+		newAltNode(
+			newAltNode(
+				newAltNode(
+					newAltNode(
+						newAltNode(
+							newAltNode(
+								newAltNode(
+									// 1 byte character <00..7F>
+									newRangeSymbolNode(tok, 0x00, 0x7f, symbolPositionNil),
+									// 2 bytes character <C2..DF 80..BF>
+									newConcatNode(
+										newRangeSymbolNode(tok, 0xc2, 0xdf, symbolPositionNil),
+										newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+									),
+								),
+								// 3 bytes character <E0 A0..BF 80..BF>
+								newConcatNode(
+									newConcatNode(
+										newSymbolNode(tok, 0xe0, symbolPositionNil),
+										newRangeSymbolNode(tok, 0xa0, 0xbf, symbolPositionNil),
+									),
+									newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+								),
+							),
+							// 3 bytes character <E1..EC 80..BF 80..BF>
+							newConcatNode(
+								newConcatNode(
+									newRangeSymbolNode(tok, 0xe1, 0xec, symbolPositionNil),
+									newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+								),
+								newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+							),
+						),
+						// 3 bytes character <ED 80..9F 80..BF>
+						newConcatNode(
+							newConcatNode(
+								newSymbolNode(tok, 0xed, symbolPositionNil),
+								newRangeSymbolNode(tok, 0x80, 0x9f, symbolPositionNil),
+							),
+							newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+						),
+					),
+					// 3 bytes character <EE..EF 80..BF 80..BF>
+					newConcatNode(
+						newConcatNode(
+							newRangeSymbolNode(tok, 0xee, 0xef, symbolPositionNil),
+							newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+						),
+						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+					),
+				),
+				// 4 bytes character <F0 90..BF 80..BF 80..BF>
+				newConcatNode(
+					newConcatNode(
+						newConcatNode(
+							newSymbolNode(tok, 0xf0, symbolPositionNil),
+							newRangeSymbolNode(tok, 0x90, 0xbf, symbolPositionNil),
+						),
+						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+					),
+					newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+				),
+			),
+			// 4 bytes character <F1..F3 80..BF 80..BF 80..BF>
+			newConcatNode(
+				newConcatNode(
+					newConcatNode(
+						newRangeSymbolNode(tok, 0xf1, 0xf3, symbolPositionNil),
+						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+					),
+					newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+				),
+				newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+			),
+		),
+		// 4 bytes character <F4 80..8F 80..BF 80..BF>
+		newConcatNode(
+			newConcatNode(
+				newConcatNode(
+					newSymbolNode(tok, 0xf4, symbolPositionNil),
+					newRangeSymbolNode(tok, 0x80, 0x8f, symbolPositionNil),
+				),
+				newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+			),
+			newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+		),
+	)
 }
 
 func (p *parser) expect(expected tokenKind) {

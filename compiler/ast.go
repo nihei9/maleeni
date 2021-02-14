@@ -119,6 +119,15 @@ func (s symbolPositionSet) sort() []symbolPosition {
 	return sorted
 }
 
+type byteRange struct {
+	from byte
+	to   byte
+}
+
+func (r byteRange) String() string {
+	return fmt.Sprintf("%v - %v", r.from, r.to)
+}
+
 type astNode interface {
 	fmt.Stringer
 	children() (astNode, astNode)
@@ -128,21 +137,35 @@ type astNode interface {
 }
 
 type symbolNode struct {
+	byteRange
 	token *token
-	value byte
 	pos   symbolPosition
 }
 
 func newSymbolNode(tok *token, value byte, pos symbolPosition) *symbolNode {
 	return &symbolNode{
+		byteRange: byteRange{
+			from: value,
+			to:   value,
+		},
 		token: tok,
-		value: value,
+		pos:   pos,
+	}
+}
+
+func newRangeSymbolNode(tok *token, from, to byte, pos symbolPosition) *symbolNode {
+	return &symbolNode{
+		byteRange: byteRange{
+			from: from,
+			to:   to,
+		},
+		token: tok,
 		pos:   pos,
 	}
 }
 
 func (n *symbolNode) String() string {
-	return fmt.Sprintf("{type: char, char: %v, int: %v, pos: %v}", string(n.token.char), n.token.char, n.pos)
+	return fmt.Sprintf("{type: symbol, value: %v - %v, token char: %v, pos: %v}", n.from, n.to, string(n.token.char), n.pos)
 }
 
 func (n *symbolNode) children() (astNode, astNode) {
