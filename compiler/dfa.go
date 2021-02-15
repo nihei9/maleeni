@@ -2,6 +2,8 @@ package compiler
 
 import (
 	"sort"
+
+	"github.com/nihei9/maleeni/spec"
 )
 
 type DFA struct {
@@ -99,13 +101,7 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 	}
 }
 
-type TransitionTable struct {
-	InitialState    int         `json:"initial_state"`
-	AcceptingStates map[int]int `json:"accepting_states"`
-	Transition      [][]int     `json:"transition"`
-}
-
-func GenTransitionTable(dfa *DFA) (*TransitionTable, error) {
+func genTransitionTable(dfa *DFA) (*spec.TransitionTable, error) {
 	state2Num := map[string]int{}
 	for i, s := range dfa.States {
 		state2Num[s] = i + 1
@@ -125,7 +121,7 @@ func GenTransitionTable(dfa *DFA) (*TransitionTable, error) {
 		tran[state2Num[s]] = entry
 	}
 
-	return &TransitionTable{
+	return &spec.TransitionTable{
 		InitialState:    state2Num[dfa.InitialState],
 		AcceptingStates: acc,
 		Transition:      tran,

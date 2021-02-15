@@ -5,19 +5,21 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/nihei9/maleeni/compiler"
+	"github.com/nihei9/maleeni/spec"
 )
 
 type Token struct {
 	ID      int
+	Kind    string
 	Match   []byte
 	EOF     bool
 	Invalid bool
 }
 
-func newToken(id int, match []byte) *Token {
+func newToken(id int, kind string, match []byte) *Token {
 	return &Token{
 		ID:    id,
+		Kind:  kind,
 		Match: match,
 	}
 }
@@ -38,21 +40,21 @@ func newInvalidToken(match []byte) *Token {
 }
 
 type lexer struct {
-	tranTab *compiler.TransitionTable
-	src     []byte
-	srcPtr  int
-	tokBuf  []*Token
+	clspec *spec.CompiledLexSpec
+	src    []byte
+	srcPtr int
+	tokBuf []*Token
 }
 
-func NewLexer(tranTab *compiler.TransitionTable, src io.Reader) (*lexer, error) {
+func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader) (*lexer, error) {
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
 		return nil, err
 	}
 	return &lexer{
-		tranTab: tranTab,
-		src:     b,
-		srcPtr:  0,
+		clspec: clspec,
+		src:    b,
+		srcPtr: 0,
 	}, nil
 }
 
@@ -112,7 +114,7 @@ func (l *lexer) peekN(n int) (*Token, error) {
 }
 
 func (l *lexer) next() (*Token, error) {
-	state := l.tranTab.InitialState
+	state := l.clspec.DFA.InitialState
 	buf := []byte{}
 	unfixedBufLen := 0
 	var tok *Token
@@ -127,7 +129,7 @@ func (l *lexer) next() (*Token, error) {
 		}
 		buf = append(buf, v)
 		unfixedBufLen++
-		entry := l.tranTab.Transition[state]
+		entry := l.clspec.DFA.Transition[state]
 		if len(entry) == 0 {
 			return nil, fmt.Errorf("no transition entry; state: %v", state)
 		}
@@ -140,9 +142,9 @@ func (l *lexer) next() (*Token, error) {
 			return newInvalidToken(buf), nil
 		}
 		state = nextState
-		id, ok := l.tranTab.AcceptingStates[state]
+		id, ok := l.clspec.DFA.AcceptingStates[state]
 		if ok {
-			tok = newToken(id, buf)
+			tok = newToken(id, l.clspec.Kinds[id], buf)
 			unfixedBufLen = 0
 		}
 	}

@@ -6,38 +6,43 @@ import (
 	"testing"
 
 	"github.com/nihei9/maleeni/compiler"
+	"github.com/nihei9/maleeni/spec"
 )
 
 func TestLexer_Next(t *testing.T) {
 	test := []struct {
-		regexps [][]byte
-		src     string
-		tokens  []*Token
+		lspec  *spec.LexSpec
+		src    string
+		tokens []*Token
 	}{
 		{
-			regexps: [][]byte{
-				[]byte("(a|b)*abb"),
-				[]byte(" *"),
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					spec.NewLexEntry("t1", "(a|b)*abb"),
+					spec.NewLexEntry("t2", " *"),
+				},
 			},
 			src: "abb aabb   aaabb babb bbabb abbbabb",
 			tokens: []*Token{
-				newToken(1, []byte("abb")),
-				newToken(2, []byte(" ")),
-				newToken(1, []byte("aabb")),
-				newToken(2, []byte("   ")),
-				newToken(1, []byte("aaabb")),
-				newToken(2, []byte(" ")),
-				newToken(1, []byte("babb")),
-				newToken(2, []byte(" ")),
-				newToken(1, []byte("bbabb")),
-				newToken(2, []byte(" ")),
-				newToken(1, []byte("abbbabb")),
+				newToken(1, "t1", []byte("abb")),
+				newToken(2, "t2", []byte(" ")),
+				newToken(1, "t1", []byte("aabb")),
+				newToken(2, "t2", []byte("   ")),
+				newToken(1, "t1", []byte("aaabb")),
+				newToken(2, "t2", []byte(" ")),
+				newToken(1, "t1", []byte("babb")),
+				newToken(2, "t2", []byte(" ")),
+				newToken(1, "t1", []byte("bbabb")),
+				newToken(2, "t2", []byte(" ")),
+				newToken(1, "t1", []byte("abbbabb")),
 				newEOFToken(),
 			},
 		},
 		{
-			regexps: [][]byte{
-				[]byte("."),
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					spec.NewLexEntry("t1", "."),
+				},
 			},
 			src: string([]byte{
 				0x00,
@@ -58,58 +63,52 @@ func TestLexer_Next(t *testing.T) {
 				0xf4, 0x8f, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newToken(1, []byte{0x00}),
-				newToken(1, []byte{0x7f}),
-				newToken(1, []byte{0xc2, 0x80}),
-				newToken(1, []byte{0xdf, 0xbf}),
-				newToken(1, []byte{0xe1, 0x80, 0x80}),
-				newToken(1, []byte{0xec, 0xbf, 0xbf}),
-				newToken(1, []byte{0xed, 0x80, 0x80}),
-				newToken(1, []byte{0xed, 0x9f, 0xbf}),
-				newToken(1, []byte{0xee, 0x80, 0x80}),
-				newToken(1, []byte{0xef, 0xbf, 0xbf}),
-				newToken(1, []byte{0xf0, 0x90, 0x80, 0x80}),
-				newToken(1, []byte{0xf0, 0xbf, 0xbf, 0xbf}),
-				newToken(1, []byte{0xf1, 0x80, 0x80, 0x80}),
-				newToken(1, []byte{0xf3, 0xbf, 0xbf, 0xbf}),
-				newToken(1, []byte{0xf4, 0x80, 0x80, 0x80}),
-				newToken(1, []byte{0xf4, 0x8f, 0xbf, 0xbf}),
+				newToken(1, "t1", []byte{0x00}),
+				newToken(1, "t1", []byte{0x7f}),
+				newToken(1, "t1", []byte{0xc2, 0x80}),
+				newToken(1, "t1", []byte{0xdf, 0xbf}),
+				newToken(1, "t1", []byte{0xe1, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xec, 0xbf, 0xbf}),
+				newToken(1, "t1", []byte{0xed, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xed, 0x9f, 0xbf}),
+				newToken(1, "t1", []byte{0xee, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xef, 0xbf, 0xbf}),
+				newToken(1, "t1", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xf0, 0xbf, 0xbf, 0xbf}),
+				newToken(1, "t1", []byte{0xf1, 0x80, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xf3, 0xbf, 0xbf, 0xbf}),
+				newToken(1, "t1", []byte{0xf4, 0x80, 0x80, 0x80}),
+				newToken(1, "t1", []byte{0xf4, 0x8f, 0xbf, 0xbf}),
 				newEOFToken(),
 			},
 		},
 		{
-			regexps: [][]byte{
-				[]byte("[ab.*|()[\\]]"),
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					spec.NewLexEntry("t1", "[ab.*|()[\\]]"),
+				},
 			},
 			src: "ab.*|()[]",
 			tokens: []*Token{
-				newToken(1, []byte("a")),
-				newToken(1, []byte("b")),
-				newToken(1, []byte(".")),
-				newToken(1, []byte("*")),
-				newToken(1, []byte("|")),
-				newToken(1, []byte("(")),
-				newToken(1, []byte(")")),
-				newToken(1, []byte("[")),
-				newToken(1, []byte("]")),
+				newToken(1, "t1", []byte("a")),
+				newToken(1, "t1", []byte("b")),
+				newToken(1, "t1", []byte(".")),
+				newToken(1, "t1", []byte("*")),
+				newToken(1, "t1", []byte("|")),
+				newToken(1, "t1", []byte("(")),
+				newToken(1, "t1", []byte(")")),
+				newToken(1, "t1", []byte("[")),
+				newToken(1, "t1", []byte("]")),
 				newEOFToken(),
 			},
 		},
 	}
 	for _, tt := range test {
-		res := map[int][]byte{}
-		for i, re := range tt.regexps {
-			res[i+1] = re
-		}
-		dfa, err := compiler.Compile(res)
+		clspec, err := compiler.Compile(tt.lspec)
 		if err != nil {
 			t.Fatalf("unexpected error occurred: %v", err)
 		}
-		tranTab, err := compiler.GenTransitionTable(dfa)
-		if err != nil {
-			t.Fatalf("unexpected error occurred: %v", err)
-		}
-		lexer, err := NewLexer(tranTab, strings.NewReader(tt.src))
+		lexer, err := NewLexer(clspec, strings.NewReader(tt.src))
 		if err != nil {
 			t.Fatalf("unexpecated error occurred; %v", err)
 		}
@@ -129,18 +128,16 @@ func TestLexer_Next(t *testing.T) {
 }
 
 func TestLexer_PeekN(t *testing.T) {
-	dfa, err := compiler.Compile(map[int][]byte{
-		1: []byte("foo"),
-		2: []byte("bar"),
+	clspec, err := compiler.Compile(&spec.LexSpec{
+		Entries: []*spec.LexEntry{
+			spec.NewLexEntry("", "foo"),
+			spec.NewLexEntry("", "bar"),
+		},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error occurred: %v", err)
 	}
-	tranTab, err := compiler.GenTransitionTable(dfa)
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-	lex, err := NewLexer(tranTab, strings.NewReader("foobar"))
+	lex, err := NewLexer(clspec, strings.NewReader("foobar"))
 	if err != nil {
 		t.Fatalf("unexpected error occurred: %v", err)
 	}
@@ -201,7 +198,7 @@ func TestLexer_PeekN(t *testing.T) {
 func testToken(t *testing.T, expected, actual *Token) {
 	t.Helper()
 
-	if actual.ID != expected.ID || !bytes.Equal(actual.Match, expected.Match) || actual.EOF != expected.EOF || actual.Invalid != expected.Invalid {
+	if actual.ID != expected.ID || actual.Kind != expected.Kind || !bytes.Equal(actual.Match, expected.Match) || actual.EOF != expected.EOF || actual.Invalid != expected.Invalid {
 		t.Errorf("unexpected token; want: %v (\"%v\"), got: %v (\"%v\")", expected, string(expected.Match), actual, string(actual.Match))
 	}
 }
