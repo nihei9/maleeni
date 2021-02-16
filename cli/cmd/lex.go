@@ -3,8 +3,10 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/nihei9/maleeni/driver"
 	"github.com/nihei9/maleeni/spec"
@@ -24,7 +26,7 @@ As use ` + "`maleeni compile`" + `, you can generate the specification.`,
 	rootCmd.AddCommand(cmd)
 }
 
-func runLex(cmd *cobra.Command, args []string) error {
+func runLex(cmd *cobra.Command, args []string) (retErr error) {
 	var clspec *spec.CompiledLexSpec
 	{
 		clspecPath := args[0]
@@ -42,7 +44,28 @@ func runLex(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	lex, err := driver.NewLexer(clspec, os.Stdin)
+	var w io.Writer
+	{
+		f, err := os.OpenFile("maleeni-lex.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		w = f
+	}
+	fmt.Fprintf(w, `maleeni lex starts.
+Date time: %v
+---
+`, time.Now().Format(time.RFC3339))
+	defer func() {
+		fmt.Fprintf(w, "---\n")
+		if retErr != nil {
+			fmt.Fprintf(w, "maleeni lex failed: %v\n", retErr)
+		} else {
+			fmt.Fprintf(w, "maleeni lex succeeded.\n")
+		}
+	}()
+	lex, err := driver.NewLexer(clspec, os.Stdin, driver.EnableLogging(w))
 	if err != nil {
 		return err
 	}
@@ -61,5 +84,6 @@ func runLex(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Fprintf(os.Stdout, "\"%v\"\n", string(tok.Match))
 	}
+
 	return nil
 }

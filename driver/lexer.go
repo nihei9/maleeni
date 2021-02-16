@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/nihei9/maleeni/log"
 	"github.com/nihei9/maleeni/spec"
 )
 
@@ -24,6 +25,16 @@ func newToken(id int, kind string, match []byte) *Token {
 	}
 }
 
+func (t *Token) String() string {
+	if t.Invalid {
+		return fmt.Sprintf("!{text: %v, byte: %v}", string(t.Match), t.Match)
+	}
+	if t.EOF {
+		return "{eof}"
+	}
+	return fmt.Sprintf("{id: %v, kind: %v, text: %v, byte: %v}", t.ID, t.Kind, string(t.Match), t.Match)
+}
+
 func newEOFToken() *Token {
 	return &Token{
 		ID:  0,
@@ -39,51 +50,95 @@ func newInvalidToken(match []byte) *Token {
 	}
 }
 
+type lexerOption func(l *lexer) error
+
+func EnableLogging(w io.Writer) lexerOption {
+	return func(l *lexer) error {
+		logger, err := log.NewLogger(w)
+		if err != nil {
+			return err
+		}
+		l.logger = logger
+		return nil
+	}
+}
+
 type lexer struct {
 	clspec *spec.CompiledLexSpec
 	src    []byte
 	srcPtr int
 	tokBuf []*Token
+	logger log.Logger
 }
 
-func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader) (*lexer, error) {
+func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) (*lexer, error) {
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
 		return nil, err
 	}
-	return &lexer{
+	l := &lexer{
 		clspec: clspec,
 		src:    b,
 		srcPtr: 0,
-	}, nil
+		logger: log.NewNopLogger(),
+	}
+	for _, opt := range opts {
+		err := opt(l)
+		if err != nil {
+			return nil, err
+		}
+	}
+	l.logger.Log("Initializing the lexer finished.")
+
+	return l, nil
 }
 
 func (l *lexer) Next() (*Token, error) {
+	l.logger.Log(`lexer#Next():
+  State:
+    pointer: %v
+    token buffer: %v`, l.srcPtr, l.tokBuf)
+
 	if len(l.tokBuf) > 0 {
 		tok := l.tokBuf[0]
 		l.tokBuf = l.tokBuf[1:]
+		l.logger.Log(`  Returns a buffered token:
+    token: %v
+    token buffer: %v`, tok, l.tokBuf)
 		return tok, nil
 	}
 
 	tok, err := l.next()
 	if err != nil {
+		l.logger.Log("  Detectes an error: %v", err)
 		return nil, err
 	}
+	l.logger.Log("  Detects a token: %v", tok)
 	if !tok.Invalid {
+		l.logger.Log(`  Returns a token:
+    token: %v
+    token buffer: %v`, tok, l.tokBuf)
 		return tok, nil
 	}
 	errTok := tok
 	for {
 		tok, err = l.next()
 		if err != nil {
+			l.logger.Log("  Detectes an error: %v", err)
 			return nil, err
 		}
+		l.logger.Log("  Detects a token: %v", tok)
 		if !tok.Invalid {
 			break
 		}
 		errTok.Match = append(errTok.Match, tok.Match...)
+		l.logger.Log("  error token: %v", errTok)
 	}
 	l.tokBuf = append(l.tokBuf, tok)
+	l.logger.Log(`  Returns a token:
+    token: %v
+    token buffer: %v`, errTok, l.tokBuf)
+
 	return errTok, nil
 }
 
