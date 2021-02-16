@@ -260,6 +260,9 @@ func (n *concatNode) first() symbolPositionSet {
 func (n *concatNode) last() symbolPositionSet {
 	s := newSymbolPositionSet()
 	s.merge(n.right.last())
+	if n.right.nullable() {
+		s.merge(n.left.last())
+	}
 	return s
 }
 
