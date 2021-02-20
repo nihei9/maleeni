@@ -338,6 +338,48 @@ func (n *repeatNode) last() symbolPositionSet {
 	return s
 }
 
+func newRepeatOneOrMoreNode(left astNode) *concatNode {
+	return newConcatNode(
+		left,
+		&repeatNode{
+			left: left,
+		})
+}
+
+type optionNode struct {
+	left astNode
+}
+
+func newOptionNode(left astNode) *optionNode {
+	return &optionNode{
+		left: left,
+	}
+}
+
+func (n *optionNode) String() string {
+	return fmt.Sprintf("{type: option}")
+}
+
+func (n *optionNode) children() (astNode, astNode) {
+	return n.left, nil
+}
+
+func (n *optionNode) nullable() bool {
+	return true
+}
+
+func (n *optionNode) first() symbolPositionSet {
+	s := newSymbolPositionSet()
+	s.merge(n.left.first())
+	return s
+}
+
+func (n *optionNode) last() symbolPositionSet {
+	s := newSymbolPositionSet()
+	s.merge(n.left.last())
+	return s
+}
+
 type followTable map[symbolPosition]symbolPositionSet
 
 func genFollowTable(root astNode) followTable {

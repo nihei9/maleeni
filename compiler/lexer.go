@@ -9,15 +9,17 @@ import (
 type tokenKind string
 
 const (
-	tokenKindChar       = tokenKind("char")
-	tokenKindAnyChar    = tokenKind(".")
-	tokenKindRepeat     = tokenKind("*")
-	tokenKindAlt        = tokenKind("|")
-	tokenKindGroupOpen  = tokenKind("(")
-	tokenKindGroupClose = tokenKind(")")
-	tokenKindBExpOpen   = tokenKind("[")
-	tokenKindBExpClose  = tokenKind("]")
-	tokenKindEOF        = tokenKind("eof")
+	tokenKindChar            = tokenKind("char")
+	tokenKindAnyChar         = tokenKind(".")
+	tokenKindRepeat          = tokenKind("*")
+	tokenKindRepeatOneOrMore = tokenKind("+")
+	tokenKindOption          = tokenKind("?")
+	tokenKindAlt             = tokenKind("|")
+	tokenKindGroupOpen       = tokenKind("(")
+	tokenKindGroupClose      = tokenKind(")")
+	tokenKindBExpOpen        = tokenKind("[")
+	tokenKindBExpClose       = tokenKind("]")
+	tokenKindEOF             = tokenKind("eof")
 )
 
 type token struct {
@@ -80,6 +82,10 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 	switch c {
 	case '*':
 		return newToken(tokenKindRepeat, nullChar), nil
+	case '+':
+		return newToken(tokenKindRepeatOneOrMore, nullChar), nil
+	case '?':
+		return newToken(tokenKindOption, nullChar), nil
 	case '.':
 		return newToken(tokenKindAnyChar, nullChar), nil
 	case '|':
@@ -104,7 +110,7 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 			}
 		}
 		switch {
-		case c == '\\' || c == '.' || c == '*' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']':
+		case c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']':
 			return newToken(tokenKindChar, c), nil
 		default:
 			return nil, &SyntaxError{

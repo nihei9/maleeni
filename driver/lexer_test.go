@@ -19,15 +19,15 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					spec.NewLexEntry("t1", "(a|b)*abb"),
-					spec.NewLexEntry("t2", " *"),
+					spec.NewLexEntry("t2", " +"),
 				},
 			},
-			src: "abb aabb   aaabb babb bbabb abbbabb",
+			src: "abb aabb aaabb babb bbabb abbbabb",
 			tokens: []*Token{
 				newToken(1, "t1", []byte("abb")),
 				newToken(2, "t2", []byte(" ")),
 				newToken(1, "t1", []byte("aabb")),
-				newToken(2, "t2", []byte("   ")),
+				newToken(2, "t2", []byte(" ")),
 				newToken(1, "t1", []byte("aaabb")),
 				newToken(2, "t2", []byte(" ")),
 				newToken(1, "t1", []byte("babb")),
@@ -35,6 +35,34 @@ func TestLexer_Next(t *testing.T) {
 				newToken(1, "t1", []byte("bbabb")),
 				newToken(2, "t2", []byte(" ")),
 				newToken(1, "t1", []byte("abbbabb")),
+				newEOFToken(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					spec.NewLexEntry("t1", "b?a+"),
+					spec.NewLexEntry("t2", "(ab)?(cd)+"),
+					spec.NewLexEntry("t3", " +"),
+				},
+			},
+			src: "ba baaa a aaa abcd abcdcdcd cd cdcdcd",
+			tokens: []*Token{
+				newToken(1, "t1", []byte("ba")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(1, "t1", []byte("baaa")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(1, "t1", []byte("a")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(1, "t1", []byte("aaa")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(2, "t2", []byte("abcd")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(2, "t2", []byte("abcdcdcd")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(2, "t2", []byte("cd")),
+				newToken(3, "t3", []byte(" ")),
+				newToken(2, "t2", []byte("cdcdcd")),
 				newEOFToken(),
 			},
 		},
@@ -85,15 +113,17 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("t1", "[ab.*|()[\\]]"),
+					spec.NewLexEntry("t1", "[ab.*+?|()[\\]]"),
 				},
 			},
-			src: "ab.*|()[]",
+			src: "ab.*+?|()[]",
 			tokens: []*Token{
 				newToken(1, "t1", []byte("a")),
 				newToken(1, "t1", []byte("b")),
 				newToken(1, "t1", []byte(".")),
 				newToken(1, "t1", []byte("*")),
+				newToken(1, "t1", []byte("+")),
+				newToken(1, "t1", []byte("?")),
 				newToken(1, "t1", []byte("|")),
 				newToken(1, "t1", []byte("(")),
 				newToken(1, "t1", []byte(")")),

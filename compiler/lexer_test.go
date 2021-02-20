@@ -31,10 +31,12 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the special characters",
-			src:     ".*|()[]",
+			src:     ".*+?|()[]",
 			tokens: []*token{
 				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
+				newToken(tokenKindRepeatOneOrMore, nullChar),
+				newToken(tokenKindOption, nullChar),
 				newToken(tokenKindAlt, nullChar),
 				newToken(tokenKindGroupOpen, nullChar),
 				newToken(tokenKindGroupClose, nullChar),
@@ -45,11 +47,13 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the escape sequences",
-			src:     "\\\\\\.\\*\\|\\(\\)\\[\\]",
+			src:     "\\\\\\.\\*\\+\\?\\|\\(\\)\\[\\]",
 			tokens: []*token{
 				newToken(tokenKindChar, '\\'),
 				newToken(tokenKindChar, '.'),
 				newToken(tokenKindChar, '*'),
+				newToken(tokenKindChar, '+'),
+				newToken(tokenKindChar, '?'),
 				newToken(tokenKindChar, '|'),
 				newToken(tokenKindChar, '('),
 				newToken(tokenKindChar, ')'),
@@ -60,12 +64,14 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "in a bracket expression, the special characters are also handled as normal characters",
-			src:     "[\\\\.*|()[\\]].*|()][",
+			src:     "[\\\\.*+?|()[\\]].*|()][",
 			tokens: []*token{
 				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindChar, '\\'),
 				newToken(tokenKindChar, '.'),
 				newToken(tokenKindChar, '*'),
+				newToken(tokenKindChar, '+'),
+				newToken(tokenKindChar, '?'),
 				newToken(tokenKindChar, '|'),
 				newToken(tokenKindChar, '('),
 				newToken(tokenKindChar, ')'),

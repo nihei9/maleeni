@@ -144,10 +144,16 @@ func (p *parser) parseConcat() astNode {
 
 func (p *parser) parseRepeat() astNode {
 	group := p.parseGroup()
-	if !p.consume(tokenKindRepeat) {
-		return group
+	if p.consume(tokenKindRepeat) {
+		return newRepeatNode(group)
 	}
-	return newRepeatNode(group)
+	if p.consume(tokenKindRepeatOneOrMore) {
+		return newRepeatOneOrMoreNode(group)
+	}
+	if p.consume(tokenKindOption) {
+		return newOptionNode(group)
+	}
+	return group
 }
 
 func (p *parser) parseGroup() astNode {

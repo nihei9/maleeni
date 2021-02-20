@@ -102,6 +102,12 @@ func TestASTNode(t *testing.T) {
 			first:    newSymbolPositionSet().add(1),
 			last:     newSymbolPositionSet().add(1),
 		},
+		{
+			root:     newOptionNode(newSymbolNode(nil, 0, 1)),
+			nullable: true,
+			first:    newSymbolPositionSet().add(1),
+			last:     newSymbolPositionSet().add(1),
+		},
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
