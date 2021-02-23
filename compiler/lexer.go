@@ -19,6 +19,7 @@ const (
 	tokenKindGroupClose      = tokenKind(")")
 	tokenKindBExpOpen        = tokenKind("[")
 	tokenKindBExpClose       = tokenKind("]")
+	tokenKindCharRange       = tokenKind("-")
 	tokenKindEOF             = tokenKind("eof")
 )
 
@@ -124,6 +125,8 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 
 func (l *lexer) nextInBExp(c rune) (*token, error) {
 	switch c {
+	case '-':
+		return newToken(tokenKindCharRange, nullChar), nil
 	case ']':
 		l.mode = lexerModeDefault
 		return newToken(tokenKindBExpClose, nullChar), nil
@@ -138,7 +141,7 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 			}
 		}
 		switch {
-		case c == '\\' || c == ']':
+		case c == '\\' || c == '-' || c == ']':
 			return newToken(tokenKindChar, c), nil
 		default:
 			return nil, &SyntaxError{
