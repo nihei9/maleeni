@@ -45,10 +45,6 @@ func printAST(w io.Writer, ast astNode, ruledLine string, childRuledLinePrefix s
 }
 
 func TestParser(t *testing.T) {
-	newCharTok := func(char rune) *token {
-		return newToken(tokenKindChar, char)
-	}
-
 	rune2Byte := func(char rune, index int) byte {
 		return []byte(string(char))[index]
 	}
@@ -73,23 +69,17 @@ func TestParser(t *testing.T) {
 	printAST(os.Stdout, root, "", "", false)
 
 	{
-		expectedAST := newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newConcatNode(
-						newRepeatNode(
-							newAltNode(
-								newSymbolNode(newCharTok('a'), rune2Byte('a', 0), symPos(1)),
-								newSymbolNode(newCharTok('b'), rune2Byte('b', 0), symPos(2)),
-							),
-						),
-						newSymbolNode(newCharTok('a'), rune2Byte('a', 0), symPos(3)),
-					),
-					newSymbolNode(newCharTok('b'), rune2Byte('b', 0), symPos(4)),
+		expectedAST := genConcatNode(
+			newRepeatNode(
+				newAltNode(
+					newSymbolNodeWithPos(rune2Byte('a', 0), symPos(1)),
+					newSymbolNodeWithPos(rune2Byte('b', 0), symPos(2)),
 				),
-				newSymbolNode(newCharTok('b'), rune2Byte('b', 0), symPos(5)),
 			),
-			newEndMarkerNode(1, endPos(6)),
+			newSymbolNodeWithPos(rune2Byte('a', 0), symPos(3)),
+			newSymbolNodeWithPos(rune2Byte('b', 0), symPos(4)),
+			newSymbolNodeWithPos(rune2Byte('b', 0), symPos(5)),
+			newEndMarkerNodeWithPos(1, endPos(6)),
 		)
 		testAST(t, expectedAST, root)
 	}
@@ -149,9 +139,6 @@ func testAST(t *testing.T, expected, actual astNode) {
 	switch e := expected.(type) {
 	case *symbolNode:
 		a := actual.(*symbolNode)
-		if a.token.char != e.token.char {
-			t.Fatalf("character is mismatched; want: '%v' (%v), got: '%v' (%v)", string(e.token.char), e.token.char, string(a.token.char), a.token.char)
-		}
 		if a.pos != e.pos {
 			t.Fatalf("symbol position is mismatched; want: %v, got: %v", e.pos, a.pos)
 		}

@@ -13,21 +13,21 @@ func TestASTNode(t *testing.T) {
 		last     symbolPositionSet
 	}{
 		{
-			root:     newSymbolNode(nil, 0, 1),
+			root:     newSymbolNodeWithPos(0, 1),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1),
 			last:     newSymbolPositionSet().add(1),
 		},
 		{
-			root:     newEndMarkerNode(1, 1),
+			root:     newEndMarkerNodeWithPos(1, 1),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1),
 			last:     newSymbolPositionSet().add(1),
 		},
 		{
 			root: newConcatNode(
-				newSymbolNode(nil, 0, 1),
-				newSymbolNode(nil, 0, 2),
+				newSymbolNodeWithPos(0, 1),
+				newSymbolNodeWithPos(0, 2),
 			),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1),
@@ -35,8 +35,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newConcatNode(
-				newRepeatNode(newSymbolNode(nil, 0, 1)),
-				newSymbolNode(nil, 0, 2),
+				newRepeatNode(newSymbolNodeWithPos(0, 1)),
+				newSymbolNodeWithPos(0, 2),
 			),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1).add(2),
@@ -44,8 +44,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newConcatNode(
-				newSymbolNode(nil, 0, 1),
-				newRepeatNode(newSymbolNode(nil, 0, 2)),
+				newSymbolNodeWithPos(0, 1),
+				newRepeatNode(newSymbolNodeWithPos(0, 2)),
 			),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1),
@@ -53,8 +53,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newConcatNode(
-				newRepeatNode(newSymbolNode(nil, 0, 1)),
-				newRepeatNode(newSymbolNode(nil, 0, 2)),
+				newRepeatNode(newSymbolNodeWithPos(0, 1)),
+				newRepeatNode(newSymbolNodeWithPos(0, 2)),
 			),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1).add(2),
@@ -62,8 +62,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newAltNode(
-				newSymbolNode(nil, 0, 1),
-				newSymbolNode(nil, 0, 2),
+				newSymbolNodeWithPos(0, 1),
+				newSymbolNodeWithPos(0, 2),
 			),
 			nullable: false,
 			first:    newSymbolPositionSet().add(1).add(2),
@@ -71,8 +71,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newAltNode(
-				newRepeatNode(newSymbolNode(nil, 0, 1)),
-				newSymbolNode(nil, 0, 2),
+				newRepeatNode(newSymbolNodeWithPos(0, 1)),
+				newSymbolNodeWithPos(0, 2),
 			),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1).add(2),
@@ -80,8 +80,8 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newAltNode(
-				newSymbolNode(nil, 0, 1),
-				newRepeatNode(newSymbolNode(nil, 0, 2)),
+				newSymbolNodeWithPos(0, 1),
+				newRepeatNode(newSymbolNodeWithPos(0, 2)),
 			),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1).add(2),
@@ -89,21 +89,21 @@ func TestASTNode(t *testing.T) {
 		},
 		{
 			root: newAltNode(
-				newRepeatNode(newSymbolNode(nil, 0, 1)),
-				newRepeatNode(newSymbolNode(nil, 0, 2)),
+				newRepeatNode(newSymbolNodeWithPos(0, 1)),
+				newRepeatNode(newSymbolNodeWithPos(0, 2)),
 			),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1).add(2),
 			last:     newSymbolPositionSet().add(1).add(2),
 		},
 		{
-			root:     newRepeatNode(newSymbolNode(nil, 0, 1)),
+			root:     newRepeatNode(newSymbolNodeWithPos(0, 1)),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1),
 			last:     newSymbolPositionSet().add(1),
 		},
 		{
-			root:     newOptionNode(newSymbolNode(nil, 0, 1)),
+			root:     newOptionNode(newSymbolNodeWithPos(0, 1)),
 			nullable: true,
 			first:    newSymbolPositionSet().add(1),
 			last:     newSymbolPositionSet().add(1),

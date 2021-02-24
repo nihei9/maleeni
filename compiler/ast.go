@@ -138,34 +138,31 @@ type astNode interface {
 
 type symbolNode struct {
 	byteRange
-	token *token
-	pos   symbolPosition
+	pos symbolPosition
 }
 
-func newSymbolNode(tok *token, value byte, pos symbolPosition) *symbolNode {
+func newSymbolNode(value byte) *symbolNode {
 	return &symbolNode{
 		byteRange: byteRange{
 			from: value,
 			to:   value,
 		},
-		token: tok,
-		pos:   pos,
+		pos: symbolPositionNil,
 	}
 }
 
-func newRangeSymbolNode(tok *token, from, to byte, pos symbolPosition) *symbolNode {
+func newRangeSymbolNode(from, to byte) *symbolNode {
 	return &symbolNode{
 		byteRange: byteRange{
 			from: from,
 			to:   to,
 		},
-		token: tok,
-		pos:   pos,
+		pos: symbolPositionNil,
 	}
 }
 
 func (n *symbolNode) String() string {
-	return fmt.Sprintf("{type: symbol, value: %v - %v, token char: %v, pos: %v}", n.from, n.to, string(n.token.char), n.pos)
+	return fmt.Sprintf("{type: symbol, value: %v - %v, pos: %v}", n.from, n.to, n.pos)
 }
 
 func (n *symbolNode) children() (astNode, astNode) {
@@ -193,10 +190,10 @@ type endMarkerNode struct {
 	pos symbolPosition
 }
 
-func newEndMarkerNode(id int, pos symbolPosition) *endMarkerNode {
+func newEndMarkerNode(id int) *endMarkerNode {
 	return &endMarkerNode{
 		id:  id,
-		pos: pos,
+		pos: symbolPositionNil,
 	}
 }
 

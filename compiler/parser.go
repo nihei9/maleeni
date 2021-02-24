@@ -115,7 +115,7 @@ func (p *parser) parseRegexp() (ast astNode, retErr error) {
 
 	alt := p.parseAlt()
 	p.expect(tokenKindEOF)
-	return newConcatNode(alt, newEndMarkerNode(p.id, symbolPositionNil)), nil
+	return newConcatNode(alt, newEndMarkerNode(p.id)), nil
 }
 
 func (p *parser) parseAlt() astNode {
@@ -166,7 +166,7 @@ func (p *parser) parseGroup() astNode {
 
 func (p *parser) parseSingleChar() astNode {
 	if p.consume(tokenKindAnyChar) {
-		return genAnyCharAST(p.lastTok)
+		return genAnyCharAST()
 	}
 	if p.consume(tokenKindBExpOpen) {
 		defer p.expect(tokenKindBExpClose)
@@ -206,30 +206,24 @@ func (p *parser) parseNormalChar() astNode {
 	b := []byte(string(p.lastTok.char))
 	switch len(b) {
 	case 1:
-		return newSymbolNode(p.lastTok, b[0], symbolPositionNil)
+		return newSymbolNode(b[0])
 	case 2:
-		return newConcatNode(
-			newSymbolNode(p.lastTok, b[0], symbolPositionNil),
-			newSymbolNode(p.lastTok, b[1], symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(b[0]),
+			newSymbolNode(b[1]),
 		)
 	case 3:
-		return newConcatNode(
-			newConcatNode(
-				newSymbolNode(p.lastTok, b[0], symbolPositionNil),
-				newSymbolNode(p.lastTok, b[1], symbolPositionNil),
-			),
-			newSymbolNode(p.lastTok, b[2], symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(b[0]),
+			newSymbolNode(b[1]),
+			newSymbolNode(b[2]),
 		)
 	default: // is equivalent to case 4
-		return newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(p.lastTok, b[0], symbolPositionNil),
-					newSymbolNode(p.lastTok, b[1], symbolPositionNil),
-				),
-				newSymbolNode(p.lastTok, b[2], symbolPositionNil),
-			),
-			newSymbolNode(p.lastTok, b[3], symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(b[0]),
+			newSymbolNode(b[1]),
+			newSymbolNode(b[2]),
+			newSymbolNode(b[3]),
 		)
 	}
 }
@@ -238,93 +232,59 @@ func (p *parser) parseNormalChar() astNode {
 // * https://www.unicode.org/versions/Unicode13.0.0/ch03.pdf#G7404
 //   * Table 3-6.  UTF-8 Bit Distribution
 //   * Table 3-7.  Well-Formed UTF-8 Byte Sequences
-func genAnyCharAST(tok *token) astNode {
-	return newAltNode(
-		newAltNode(
-			newAltNode(
-				newAltNode(
-					newAltNode(
-						newAltNode(
-							newAltNode(
-								newAltNode(
-									// 1 byte character <00..7F>
-									newRangeSymbolNode(tok, 0x00, 0x7f, symbolPositionNil),
-									// 2 bytes character <C2..DF 80..BF>
-									newConcatNode(
-										newRangeSymbolNode(tok, 0xc2, 0xdf, symbolPositionNil),
-										newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-									),
-								),
-								// 3 bytes character <E0 A0..BF 80..BF>
-								newConcatNode(
-									newConcatNode(
-										newSymbolNode(tok, 0xe0, symbolPositionNil),
-										newRangeSymbolNode(tok, 0xa0, 0xbf, symbolPositionNil),
-									),
-									newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-								),
-							),
-							// 3 bytes character <E1..EC 80..BF 80..BF>
-							newConcatNode(
-								newConcatNode(
-									newRangeSymbolNode(tok, 0xe1, 0xec, symbolPositionNil),
-									newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-								),
-								newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-							),
-						),
-						// 3 bytes character <ED 80..9F 80..BF>
-						newConcatNode(
-							newConcatNode(
-								newSymbolNode(tok, 0xed, symbolPositionNil),
-								newRangeSymbolNode(tok, 0x80, 0x9f, symbolPositionNil),
-							),
-							newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-						),
-					),
-					// 3 bytes character <EE..EF 80..BF 80..BF>
-					newConcatNode(
-						newConcatNode(
-							newRangeSymbolNode(tok, 0xee, 0xef, symbolPositionNil),
-							newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-						),
-						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-					),
-				),
-				// 4 bytes character <F0 90..BF 80..BF 80..BF>
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(tok, 0xf0, symbolPositionNil),
-							newRangeSymbolNode(tok, 0x90, 0xbf, symbolPositionNil),
-						),
-						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-					),
-					newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-				),
-			),
-			// 4 bytes character <F1..F3 80..BF 80..BF 80..BF>
-			newConcatNode(
-				newConcatNode(
-					newConcatNode(
-						newRangeSymbolNode(tok, 0xf1, 0xf3, symbolPositionNil),
-						newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-					),
-					newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-				),
-				newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-			),
+func genAnyCharAST() astNode {
+	return genAltNode(
+		// 1 byte character <00..7F>
+		newRangeSymbolNode(0x00, 0x7f),
+		// 2 bytes character <C2..DF 80..BF>
+		genConcatNode(
+			newRangeSymbolNode(0xc2, 0xdf),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 3 bytes character <E0 A0..BF 80..BF>
+		genConcatNode(
+			newSymbolNode(0xe0),
+			newRangeSymbolNode(0xa0, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 3 bytes character <E1..EC 80..BF 80..BF>
+		genConcatNode(
+			newRangeSymbolNode(0xe1, 0xec),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 3 bytes character <ED 80..9F 80..BF>
+		genConcatNode(
+			newSymbolNode(0xed),
+			newRangeSymbolNode(0x80, 0x9f),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 3 bytes character <EE..EF 80..BF 80..BF>
+		genConcatNode(
+			newRangeSymbolNode(0xee, 0xef),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 4 bytes character <F0 90..BF 80..BF 80..BF>
+		genConcatNode(
+			newSymbolNode(0xf0),
+			newRangeSymbolNode(0x90, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+		),
+		// 4 bytes character <F1..F3 80..BF 80..BF 80..BF>
+		genConcatNode(
+			newRangeSymbolNode(0xf1, 0xf3),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
 		),
 		// 4 bytes character <F4 80..8F 80..BF 80..BF>
-		newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(tok, 0xf4, symbolPositionNil),
-					newRangeSymbolNode(tok, 0x80, 0x8f, symbolPositionNil),
-				),
-				newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
-			),
-			newRangeSymbolNode(tok, 0x80, 0xbf, symbolPositionNil),
+		genConcatNode(
+			newSymbolNode(0xf4),
+			newRangeSymbolNode(0x80, 0x8f),
+			newRangeSymbolNode(0x80, 0xbf),
+			newRangeSymbolNode(0x80, 0xbf),
 		),
 	)
 }
@@ -341,27 +301,21 @@ func genRangeAST(fromNode, toNode astNode) astNode {
 		case 1:
 			return gen1ByteCharRangeAST(from, to)
 		case 2:
-			return newAltNode(
+			return genAltNode(
 				gen1ByteCharRangeAST(from, []byte{0x7f}),
 				gen2ByteCharRangeAST([]byte{0xc2, 0x80}, to),
 			)
 		case 3:
-			return newAltNode(
-				newAltNode(
-					gen1ByteCharRangeAST(from, []byte{0x7f}),
-					gen2ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xdf, 0xbf}),
-				),
+			return genAltNode(
+				gen1ByteCharRangeAST(from, []byte{0x7f}),
+				gen2ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xdf, 0xbf}),
 				gen3ByteCharRangeAST([]byte{0xe0, 0xa0, 0x80}, to),
 			)
 		case 4:
-			return newAltNode(
-				newAltNode(
-					newAltNode(
-						gen1ByteCharRangeAST(from, []byte{0x7f}),
-						gen2ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xdf, 0xbf}),
-					),
-					gen3ByteCharRangeAST([]byte{0xe0, 0xa0, 0x80}, []byte{0xef, 0xbf, 0xbf}),
-				),
+			return genAltNode(
+				gen1ByteCharRangeAST(from, []byte{0x7f}),
+				gen2ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xdf, 0xbf}),
+				gen3ByteCharRangeAST([]byte{0xe0, 0xa0, 0x80}, []byte{0xef, 0xbf, 0xbf}),
 				gen4ByteCharRangeAST([]byte{0xf0, 0x90, 0x80}, to),
 			)
 		}
@@ -370,16 +324,14 @@ func genRangeAST(fromNode, toNode astNode) astNode {
 		case 2:
 			return gen2ByteCharRangeAST(from, to)
 		case 3:
-			return newAltNode(
+			return genAltNode(
 				gen2ByteCharRangeAST(from, []byte{0xdf, 0xbf}),
 				gen3ByteCharRangeAST([]byte{0xc2, 0x80}, to),
 			)
 		case 4:
-			return newAltNode(
-				newAltNode(
-					gen2ByteCharRangeAST(from, []byte{0xdf, 0xbf}),
-					gen3ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xef, 0xbf, 0xbf}),
-				),
+			return genAltNode(
+				gen2ByteCharRangeAST(from, []byte{0xdf, 0xbf}),
+				gen3ByteCharRangeAST([]byte{0xc2, 0x80}, []byte{0xef, 0xbf, 0xbf}),
 				gen4ByteCharRangeAST([]byte{0xf0, 0x90, 0x80}, to),
 			)
 		}
@@ -388,7 +340,7 @@ func genRangeAST(fromNode, toNode astNode) astNode {
 		case 3:
 			return gen3ByteCharRangeAST(from, to)
 		case 4:
-			return newAltNode(
+			return genAltNode(
 				gen3ByteCharRangeAST(from, []byte{0xef, 0xbf, 0xbf}),
 				gen4ByteCharRangeAST([]byte{0xf0, 0x90, 0x80}, to),
 			)
@@ -431,7 +383,7 @@ func isValidOrder(from, to []byte) bool {
 }
 
 func gen1ByteCharRangeAST(from, to []byte) astNode {
-	return newRangeSymbolNode(nil, from[0], to[0], symbolPositionNil)
+	return newRangeSymbolNode(from[0], to[0])
 }
 
 func gen2ByteCharRangeAST(from, to []byte) astNode {
@@ -441,23 +393,23 @@ func gen2ByteCharRangeAST(from, to []byte) astNode {
 	to1 := to[1]
 	switch {
 	case from0 == to0 && from1 == to1:
-		return newConcatNode(
-			newSymbolNode(nil, from0, symbolPositionNil),
-			newSymbolNode(nil, from1, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
 		)
 	case from0 == to0:
-		return newConcatNode(
-			newSymbolNode(nil, from0, symbolPositionNil),
-			newRangeSymbolNode(nil, from1, to1, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newRangeSymbolNode(from1, to1),
 		)
 	default:
-		alt1 := newConcatNode(
-			newSymbolNode(nil, from0, symbolPositionNil),
-			newRangeSymbolNode(nil, from1, 0xbf, symbolPositionNil),
+		alt1 := genConcatNode(
+			newSymbolNode(from0),
+			newRangeSymbolNode(from1, 0xbf),
 		)
-		alt2 := newConcatNode(
-			newRangeSymbolNode(nil, from0+1, to0, symbolPositionNil),
-			newRangeSymbolNode(nil, 0x80, to1, symbolPositionNil),
+		alt2 := genConcatNode(
+			newRangeSymbolNode(from0+1, to0),
+			newRangeSymbolNode(0x80, to1),
 		)
 		return newAltNode(alt1, alt2)
 	}
@@ -522,52 +474,42 @@ func gen3ByteCharRangeAST(from, to []byte) astNode {
 	to2 := to[2]
 	switch {
 	case from0 == to0 && from1 == to1 && from2 == to2:
-		return newConcatNode(
-			newConcatNode(
-				newSymbolNode(nil, from0, symbolPositionNil),
-				newSymbolNode(nil, from1, symbolPositionNil),
-			),
-			newSymbolNode(nil, from2, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
 		)
 	case from0 == to0 && from1 == to1:
-		return newConcatNode(
-			newConcatNode(
-				newSymbolNode(nil, from0, symbolPositionNil),
-				newSymbolNode(nil, from1, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from2, to2, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newRangeSymbolNode(from2, to2),
 		)
 	case from0 == to0:
 		rangeNum := get3ByteCharRangeNum(from)
 		bounds := bounds3[rangeNum]
 		var alt astNode
-		alt = newConcatNode(
-			newConcatNode(
-				newSymbolNode(nil, from0, symbolPositionNil),
-				newSymbolNode(nil, from1, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from2, bounds[2].max, symbolPositionNil),
+		alt = genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newRangeSymbolNode(from2, bounds[2].max),
 		)
 		if from1+1 < to1 {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, from0, symbolPositionNil),
-						newRangeSymbolNode(nil, from1+1, to1-1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newRangeSymbolNode(from1+1, to1-1),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
 				),
 			)
 		}
-		alt = newAltNode(
+		alt = genAltNode(
 			alt,
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, to1, symbolPositionNil),
-				),
-				newRangeSymbolNode(nil, bounds[2].min, to2, symbolPositionNil),
+			genConcatNode(
+				newSymbolNode(from0),
+				newSymbolNode(to1),
+				newRangeSymbolNode(bounds[2].min, to2),
 			),
 		)
 		return alt
@@ -576,108 +518,90 @@ func gen3ByteCharRangeAST(from, to []byte) astNode {
 		toRangeNum := get3ByteCharRangeNum(to)
 		bounds := bounds3[fromRangeNum]
 		var alt astNode
-		alt = newConcatNode(
-			newConcatNode(
-				newSymbolNode(nil, from0, symbolPositionNil),
-				newSymbolNode(nil, from1, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from2, bounds[2].max, symbolPositionNil),
+		alt = genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newRangeSymbolNode(from2, bounds[2].max),
 		)
 		if from1 < bounds[1].max {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, from0, symbolPositionNil),
-						newRangeSymbolNode(nil, from1+1, bounds[1].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newRangeSymbolNode(from1+1, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
 				),
 			)
 		}
 		if fromRangeNum == toRangeNum {
 			if from0+1 < to0 {
-				alt = newAltNode(
+				alt = genAltNode(
 					alt,
-					newConcatNode(
-						newConcatNode(
-							newRangeSymbolNode(nil, from0+1, to0-1, symbolPositionNil),
-							newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+					genConcatNode(
+						newRangeSymbolNode(from0+1, to0-1),
+						newRangeSymbolNode(bounds[1].min, bounds[1].max),
+						newRangeSymbolNode(bounds[2].min, bounds[2].max),
 					),
 				)
 			}
 			if to1 > bounds[1].min {
-				alt = newAltNode(
+				alt = genAltNode(
 					alt,
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, to0, symbolPositionNil),
-							newRangeSymbolNode(nil, bounds[1].min, to1-1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+					genConcatNode(
+						newSymbolNode(to0),
+						newRangeSymbolNode(bounds[1].min, to1-1),
+						newRangeSymbolNode(bounds[2].min, bounds[2].max),
 					),
 				)
 			}
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, to0, symbolPositionNil),
-						newSymbolNode(nil, to1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, to2, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(to0),
+					newSymbolNode(to1),
+					newRangeSymbolNode(bounds[2].min, to2),
 				),
 			)
 			return alt
 		}
 		for rangeNum := fromRangeNum + 1; rangeNum < toRangeNum; rangeNum++ {
 			bounds := bounds3[rangeNum]
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newRangeSymbolNode(nil, bounds[0].min, bounds[0].max, symbolPositionNil),
-						newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+				genConcatNode(
+					newRangeSymbolNode(bounds[0].min, bounds[0].max),
+					newRangeSymbolNode(bounds[1].min, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
 				),
 			)
 		}
 		bounds = bounds3[toRangeNum]
 		if to0 > bounds[0].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newRangeSymbolNode(nil, bounds[0].min, to0-1, symbolPositionNil),
-						newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+				genConcatNode(
+					newRangeSymbolNode(bounds[0].min, to0-1),
+					newRangeSymbolNode(bounds[1].min, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
 				),
 			)
 		}
 		if to1 > bounds[1].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, to0, symbolPositionNil),
-						newRangeSymbolNode(nil, bounds[1].min, to1-1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(to0),
+					newRangeSymbolNode(bounds[1].min, to1-1),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
 				),
 			)
 		}
-		alt = newAltNode(
+		alt = genAltNode(
 			alt,
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, to0, symbolPositionNil),
-					newSymbolNode(nil, to1, symbolPositionNil),
-				),
-				newRangeSymbolNode(nil, bounds[2].min, to2, symbolPositionNil),
+			genConcatNode(
+				newSymbolNode(to0),
+				newSymbolNode(to1),
+				newRangeSymbolNode(bounds[2].min, to2),
 			),
 		)
 		return alt
@@ -695,67 +619,47 @@ func gen4ByteCharRangeAST(from, to []byte) astNode {
 	to3 := to[3]
 	switch {
 	case from0 == to0 && from1 == to1 && from2 == to2 && from3 == to3:
-		return newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, from1, symbolPositionNil),
-				),
-				newSymbolNode(nil, from2, symbolPositionNil),
-			),
-			newSymbolNode(nil, from3, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
+			newSymbolNode(from3),
 		)
 	case from0 == to0 && from1 == to1 && from2 == to2:
-		return newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, from1, symbolPositionNil),
-				),
-				newSymbolNode(nil, from2, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from3, to3, symbolPositionNil),
+		return genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
+			newRangeSymbolNode(from3, to3),
 		)
 	case from0 == to0 && from1 == to1:
 		rangeNum := get4ByteCharRangeNum(from)
 		bounds := bounds4[rangeNum]
 		var alt astNode
-		alt = newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, from1, symbolPositionNil),
-				),
-				newSymbolNode(nil, from2, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from3, bounds[3].max, symbolPositionNil),
+		alt = genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
+			newRangeSymbolNode(from3, bounds[3].max),
 		)
 		if from2+1 < to2 {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newSymbolNode(nil, from1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, from2+1, to2-1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newSymbolNode(from1),
+					newRangeSymbolNode(from2+1, to2-1),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
-		alt = newAltNode(
+		alt = genAltNode(
 			alt,
-			newConcatNode(
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, from0, symbolPositionNil),
-						newSymbolNode(nil, from1, symbolPositionNil),
-					),
-					newSymbolNode(nil, to2, symbolPositionNil),
-				),
-				newRangeSymbolNode(nil, bounds[3].min, to3, symbolPositionNil),
+			genConcatNode(
+				newSymbolNode(from0),
+				newSymbolNode(from1),
+				newSymbolNode(to2),
+				newRangeSymbolNode(bounds[3].min, to3),
 			),
 		)
 		return alt
@@ -763,72 +667,52 @@ func gen4ByteCharRangeAST(from, to []byte) astNode {
 		rangeNum := get4ByteCharRangeNum(from)
 		bounds := bounds4[rangeNum]
 		var alt astNode
-		alt = newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, from1, symbolPositionNil),
-				),
-				newSymbolNode(nil, from2, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from3, bounds[3].max, symbolPositionNil),
+		alt = genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
+			newRangeSymbolNode(from3, bounds[3].max),
 		)
 		if from2 < bounds[2].max {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newSymbolNode(nil, from1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, from2+1, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newSymbolNode(from1),
+					newRangeSymbolNode(from2+1, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if from1+1 < to1 {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newRangeSymbolNode(nil, from1+1, to1-1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newRangeSymbolNode(from1+1, to1-1),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if to2 > bounds[2].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newSymbolNode(nil, to1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, to2-1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newSymbolNode(to1),
+					newRangeSymbolNode(bounds[2].min, to2-1),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
-		alt = newAltNode(
+		alt = genAltNode(
 			alt,
-			newConcatNode(
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, from0, symbolPositionNil),
-						newSymbolNode(nil, to1, symbolPositionNil),
-					),
-					newSymbolNode(nil, to2, symbolPositionNil),
-				),
-				newRangeSymbolNode(nil, bounds[3].min, to3, symbolPositionNil),
+			genConcatNode(
+				newSymbolNode(from0),
+				newSymbolNode(to1),
+				newSymbolNode(to2),
+				newRangeSymbolNode(bounds[3].min, to3),
 			),
 		)
 		return alt
@@ -837,184 +721,152 @@ func gen4ByteCharRangeAST(from, to []byte) astNode {
 		toRangeNum := get4ByteCharRangeNum(to)
 		bounds := bounds4[fromRangeNum]
 		var alt astNode
-		alt = newConcatNode(
-			newConcatNode(
-				newConcatNode(
-					newSymbolNode(nil, from0, symbolPositionNil),
-					newSymbolNode(nil, from1, symbolPositionNil),
-				),
-				newSymbolNode(nil, from2, symbolPositionNil),
-			),
-			newRangeSymbolNode(nil, from3, bounds[3].max, symbolPositionNil),
+		alt = genConcatNode(
+			newSymbolNode(from0),
+			newSymbolNode(from1),
+			newSymbolNode(from2),
+			newRangeSymbolNode(from3, bounds[3].max),
 		)
 		if from2 < bounds[2].max {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newSymbolNode(nil, from1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, from2+1, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newSymbolNode(from1),
+					newRangeSymbolNode(from2+1, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if from1 < bounds[1].max {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, from0, symbolPositionNil),
-							newRangeSymbolNode(nil, from1+1, bounds[1].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(from0),
+					newRangeSymbolNode(from1+1, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if fromRangeNum == toRangeNum {
 			if from0+1 < to0 {
-				alt = newAltNode(
+				alt = genAltNode(
 					alt,
-					newConcatNode(
-						newConcatNode(
-							newConcatNode(
-								newRangeSymbolNode(nil, from0+1, to0-1, symbolPositionNil),
-								newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-							),
-							newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+					genConcatNode(
+						newRangeSymbolNode(from0+1, to0-1),
+						newRangeSymbolNode(bounds[1].min, bounds[1].max),
+						newRangeSymbolNode(bounds[2].min, bounds[2].max),
+						newRangeSymbolNode(bounds[3].min, bounds[3].max),
 					),
 				)
 			}
 			if to1 > bounds[1].min {
-				alt = newAltNode(
+				alt = genAltNode(
 					alt,
-					newConcatNode(
-						newConcatNode(
-							newConcatNode(
-								newSymbolNode(nil, to0, symbolPositionNil),
-								newRangeSymbolNode(nil, bounds[1].min, to1-1, symbolPositionNil),
-							),
-							newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+					genConcatNode(
+						newSymbolNode(to0),
+						newRangeSymbolNode(bounds[1].min, to1-1),
+						newRangeSymbolNode(bounds[2].min, bounds[2].max),
+						newRangeSymbolNode(bounds[3].min, bounds[3].max),
 					),
 				)
 			}
 			if to2 > bounds[2].min {
-				alt = newAltNode(
+				alt = genAltNode(
 					alt,
-					newConcatNode(
-						newConcatNode(
-							newConcatNode(
-								newSymbolNode(nil, to0, symbolPositionNil),
-								newSymbolNode(nil, to1, symbolPositionNil),
-							),
-							newRangeSymbolNode(nil, bounds[2].min, to2-1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+					genConcatNode(
+						newSymbolNode(to0),
+						newSymbolNode(to1),
+						newRangeSymbolNode(bounds[2].min, to2-1),
+						newRangeSymbolNode(bounds[3].min, bounds[3].max),
 					),
 				)
 			}
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, to0, symbolPositionNil),
-							newSymbolNode(nil, to1, symbolPositionNil),
-						),
-						newSymbolNode(nil, to2, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, to3, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(to0),
+					newSymbolNode(to1),
+					newSymbolNode(to2),
+					newRangeSymbolNode(bounds[3].min, to3),
 				),
 			)
 			return alt
 		}
 		for rangeNum := fromRangeNum + 1; rangeNum < toRangeNum; rangeNum++ {
 			bounds := bounds4[rangeNum]
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newRangeSymbolNode(nil, bounds[0].min, bounds[0].max, symbolPositionNil),
-							newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newRangeSymbolNode(bounds[0].min, bounds[0].max),
+					newRangeSymbolNode(bounds[1].min, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		bounds = bounds4[toRangeNum]
 		if to0 > bounds[0].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newRangeSymbolNode(nil, bounds[0].min, to0-1, symbolPositionNil),
-							newRangeSymbolNode(nil, bounds[1].min, bounds[1].max, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newRangeSymbolNode(bounds[0].min, to0-1),
+					newRangeSymbolNode(bounds[1].min, bounds[1].max),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if to1 > bounds[1].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, to0, symbolPositionNil),
-							newRangeSymbolNode(nil, bounds[1].min, to1-1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, bounds[2].max, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(to0),
+					newRangeSymbolNode(bounds[1].min, to1-1),
+					newRangeSymbolNode(bounds[2].min, bounds[2].max),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
 		if to2 > bounds[2].min {
-			alt = newAltNode(
+			alt = genAltNode(
 				alt,
-				newConcatNode(
-					newConcatNode(
-						newConcatNode(
-							newSymbolNode(nil, to0, symbolPositionNil),
-							newSymbolNode(nil, to1, symbolPositionNil),
-						),
-						newRangeSymbolNode(nil, bounds[2].min, to2-1, symbolPositionNil),
-					),
-					newRangeSymbolNode(nil, bounds[3].min, bounds[3].max, symbolPositionNil),
+				genConcatNode(
+					newSymbolNode(to0),
+					newSymbolNode(to1),
+					newRangeSymbolNode(bounds[2].min, to2-1),
+					newRangeSymbolNode(bounds[3].min, bounds[3].max),
 				),
 			)
 		}
-		alt = newAltNode(
+		alt = genAltNode(
 			alt,
-			newConcatNode(
-				newConcatNode(
-					newConcatNode(
-						newSymbolNode(nil, to0, symbolPositionNil),
-						newSymbolNode(nil, to1, symbolPositionNil),
-					),
-					newSymbolNode(nil, to2, symbolPositionNil),
-				),
-				newRangeSymbolNode(nil, bounds[3].min, to3, symbolPositionNil),
+			genConcatNode(
+				newSymbolNode(to0),
+				newSymbolNode(to1),
+				newSymbolNode(to2),
+				newRangeSymbolNode(bounds[3].min, to3),
 			),
 		)
 		return alt
 	}
+}
+
+func genConcatNode(c1, c2 astNode, cn ...astNode) *concatNode {
+	concat := newConcatNode(c1, c2)
+	for _, c := range cn {
+		concat = newConcatNode(concat, c)
+	}
+	return concat
+}
+
+func genAltNode(c1, c2 astNode, cn ...astNode) *altNode {
+	alt := newAltNode(c1, c2)
+	for _, c := range cn {
+		alt = newAltNode(alt, c)
+	}
+	return alt
 }
 
 func (p *parser) expect(expected tokenKind) {
