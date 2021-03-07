@@ -348,7 +348,7 @@ func genRangeAST(fromNode, toNode astNode) astNode {
 	case 4:
 		return gen4ByteCharRangeAST(from, to)
 	}
-	panic(fmt.Sprintf("invalid range; from: %v, to: %v", from, to))
+	panic(fmt.Errorf("invalid range; from: %v, to: %v", from, to))
 }
 
 func genByteSeq(node astNode) []byte {
@@ -360,7 +360,7 @@ func genByteSeq(node astNode) []byte {
 		seq = append(seq, genByteSeq(n.right)...)
 		return seq
 	}
-	panic(fmt.Sprintf("genByteSeq() cannot handle %T: %v", node, node))
+	panic(fmt.Errorf("genByteSeq() cannot handle %T: %v", node, node))
 }
 
 func isValidOrder(from, to []byte) bool {
