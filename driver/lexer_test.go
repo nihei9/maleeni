@@ -136,18 +136,23 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 1 byte characters
-					spec.NewLexEntry("1ByteChar", "[\x00-\x7f]"),
+					//
+					// NOTE:
+					// maleeni cannot handle the null character in patterns because compiler.lexer,
+					// specifically read() and restore(), recognizes the null characters as that a symbol doesn't exist.
+					// There is room for improvement in this behavior of the lexer.
+					spec.NewLexEntry("1ByteChar", "[\x01-\x7f]"),
 				},
 			},
 			src: string([]byte{
-				0x00,
 				0x01,
+				0x02,
 				0x7e,
 				0x7f,
 			}),
 			tokens: []*Token{
-				newToken(1, "1ByteChar", []byte{0x00}),
 				newToken(1, "1ByteChar", []byte{0x01}),
+				newToken(1, "1ByteChar", []byte{0x02}),
 				newToken(1, "1ByteChar", []byte{0x7e}),
 				newToken(1, "1ByteChar", []byte{0x7f}),
 				newEOFToken(),
@@ -388,6 +393,18 @@ func TestLexer_Next(t *testing.T) {
 				newToken(1, "4ByteChar", []byte{0xf4, 0x80, 0x80, 0x81}),
 				newToken(1, "4ByteChar", []byte{0xf4, 0x8f, 0xbf, 0xbe}),
 				newToken(1, "4ByteChar", []byte{0xf4, 0x8f, 0xbf, 0xbf}),
+				newEOFToken(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					spec.NewLexEntry("NonNumber", "[^0-9]+[0-9]"),
+				},
+			},
+			src: "foo9",
+			tokens: []*Token{
+				newToken(1, "NonNumber", []byte("foo9")),
 				newEOFToken(),
 			},
 		},

@@ -183,6 +183,28 @@ func (p *parser) parseSingleChar() astNode {
 		}
 		return left
 	}
+	if p.consume(tokenKindInverseBExpOpen) {
+		defer p.expect(tokenKindBExpClose)
+		elem := p.parseBExpElem()
+		if elem == nil {
+			raiseSyntaxError("bracket expression must include at least one character")
+		}
+		inverse := exclude(elem, genAnyCharAST())
+		if inverse == nil {
+			panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+		}
+		for {
+			elem := p.parseBExpElem()
+			if elem == nil {
+				break
+			}
+			inverse = exclude(elem, inverse)
+			if inverse == nil {
+				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+			}
+		}
+		return inverse
+	}
 	return p.parseNormalChar()
 }
 
@@ -226,6 +248,38 @@ func (p *parser) parseNormalChar() astNode {
 			newSymbolNode(b[3]),
 		)
 	}
+}
+
+func exclude(symbol, base astNode) astNode {
+	switch base.(type) {
+	case *altNode:
+		left, right := base.children()
+		return genAltNode(
+			exclude(symbol, left),
+			exclude(symbol, right),
+		)
+	case *symbolNode:
+		baseSeq := genByteRangeSeq(base)
+		symSeq := genByteRangeSeq(symbol)
+		excluded := excludeByteRangeSequence(symSeq, baseSeq)
+		if len(excluded) <= 0 {
+			return nil
+		}
+		return convertByteRangeSeqsToAST(excluded)
+	}
+	return nil
+}
+
+func convertByteRangeSeqsToAST(seqs [][]byteRange) astNode {
+	concats := []astNode{}
+	for _, seq := range seqs {
+		syms := []astNode{}
+		for _, elem := range seq {
+			syms = append(syms, newRangeSymbolNode(elem.from, elem.to))
+		}
+		concats = append(concats, genConcatNode(syms...))
+	}
+	return genAltNode(concats...)
 }
 
 // Refelences:
@@ -361,6 +415,18 @@ func genByteSeq(node astNode) []byte {
 		return seq
 	}
 	panic(fmt.Errorf("genByteSeq() cannot handle %T: %v", node, node))
+}
+
+func genByteRangeSeq(node astNode) []byteRange {
+	switch n := node.(type) {
+	case *symbolNode:
+		return []byteRange{{from: n.from, to: n.to}}
+	case *concatNode:
+		seq := genByteRangeSeq(n.left)
+		seq = append(seq, genByteRangeSeq(n.right)...)
+		return seq
+	}
+	panic(fmt.Errorf("genByteRangeSeq() cannot handle %T: %v", node, node))
 }
 
 func isValidOrder(from, to []byte) bool {
@@ -853,17 +919,36 @@ func gen4ByteCharRangeAST(from, to []byte) astNode {
 	}
 }
 
-func genConcatNode(c1, c2 astNode, cn ...astNode) *concatNode {
-	concat := newConcatNode(c1, c2)
-	for _, c := range cn {
+func genConcatNode(cs ...astNode) astNode {
+	if len(cs) <= 0 {
+		return nil
+	}
+	if len(cs) == 1 {
+		return cs[0]
+	}
+	concat := newConcatNode(cs[0], cs[1])
+	for _, c := range cs[2:] {
 		concat = newConcatNode(concat, c)
 	}
 	return concat
 }
 
-func genAltNode(c1, c2 astNode, cn ...astNode) *altNode {
-	alt := newAltNode(c1, c2)
-	for _, c := range cn {
+func genAltNode(cs ...astNode) astNode {
+	nonNilNodes := []astNode{}
+	for _, c := range cs {
+		if c == nil {
+			continue
+		}
+		nonNilNodes = append(nonNilNodes, c)
+	}
+	if len(nonNilNodes) <= 0 {
+		return nil
+	}
+	if len(nonNilNodes) == 1 {
+		return nonNilNodes[0]
+	}
+	alt := newAltNode(nonNilNodes[0], nonNilNodes[1])
+	for _, c := range nonNilNodes[2:] {
 		alt = newAltNode(alt, c)
 	}
 	return alt

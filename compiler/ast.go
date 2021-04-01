@@ -119,15 +119,6 @@ func (s symbolPositionSet) sort() []symbolPosition {
 	return sorted
 }
 
-type byteRange struct {
-	from byte
-	to   byte
-}
-
-func (r byteRange) String() string {
-	return fmt.Sprintf("%v - %v", r.from, r.to)
-}
-
 type astNode interface {
 	fmt.Stringer
 	children() (astNode, astNode)

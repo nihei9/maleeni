@@ -31,7 +31,7 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the special characters",
-			src:     ".*+?|()[-]",
+			src:     ".*+?|()[-][^^]",
 			tokens: []*token{
 				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
@@ -43,12 +43,15 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindCharRange, nullChar),
 				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '^'),
+				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
 		{
 			caption: "lexer can recognize the escape sequences",
-			src:     "\\\\\\.\\*\\+\\?\\|\\(\\)\\[\\][\\-]",
+			src:     "\\\\\\.\\*\\+\\?\\|\\(\\)\\[\\][\\^\\-]",
 			tokens: []*token{
 				newToken(tokenKindChar, '\\'),
 				newToken(tokenKindChar, '.'),
@@ -61,6 +64,7 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindChar, '['),
 				newToken(tokenKindChar, ']'),
 				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '^'),
 				newToken(tokenKindChar, '-'),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
@@ -90,6 +94,30 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindChar, '-'),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "caret symbols that appear in bracket expressions are handled as the logical inverse symbol or ordinary characters",
+			// [^...^...][^]
+			// ~~   ~    ~~
+			// ^    ^    ^^
+			// |    |    |`-- Ordinary Character (c)
+			// |    |    `-- Bracket Expression
+			// |    `-- Ordinary Character (b)
+			// `-- Inverse Bracket Expression (a)
+			//
+			// a. Bracket expressions that have a caret symbol at the beginning are handled as logical inverse expressions.
+			// b. caret symbols that appear as the second and the subsequent symbols are handled as ordinary symbols.
+			// c. When a bracket expression has just one symbol, a caret symbol at the beginning is handled as an ordinary character.
+			src: "[^^][^]",
+			tokens: []*token{
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '^'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '^'),
+				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},

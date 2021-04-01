@@ -18,6 +18,7 @@ const (
 	tokenKindGroupOpen       = tokenKind("(")
 	tokenKindGroupClose      = tokenKind(")")
 	tokenKindBExpOpen        = tokenKind("[")
+	tokenKindInverseBExpOpen = tokenKind("[^")
 	tokenKindBExpClose       = tokenKind("]")
 	tokenKindCharRange       = tokenKind("-")
 	tokenKindEOF             = tokenKind("eof")
@@ -46,18 +47,32 @@ const (
 
 type lexer struct {
 	src        *bufio.Reader
+	peekChar2  rune
+	peekEOF2   bool
+	peekChar1  rune
+	peekEOF1   bool
 	lastChar   rune
-	prevChar   rune
 	reachedEOF bool
+	prevChar1  rune
+	prevEOF1   bool
+	prevChar2  rune
+	pervEOF2   bool
 	mode       lexerMode
 }
 
 func newLexer(src io.Reader) *lexer {
 	return &lexer{
 		src:        bufio.NewReader(src),
+		peekChar2:  nullChar,
+		peekEOF2:   false,
+		peekChar1:  nullChar,
+		peekEOF1:   false,
 		lastChar:   nullChar,
-		prevChar:   nullChar,
 		reachedEOF: false,
+		prevChar1:  nullChar,
+		prevEOF1:   false,
+		prevChar2:  nullChar,
+		pervEOF2:   false,
 		mode:       lexerModeDefault,
 	}
 }
@@ -97,6 +112,50 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 		return newToken(tokenKindGroupClose, nullChar), nil
 	case '[':
 		l.mode = lexerModeBExp
+		c1, eof, err := l.read()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindBExpOpen, nullChar), nil
+		}
+		if c1 != '^' {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindBExpOpen, nullChar), nil
+		}
+		c2, eof, err := l.read()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindInverseBExpOpen, nullChar), nil
+		}
+		if c2 != ']' {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindInverseBExpOpen, nullChar), nil
+		}
+		err = l.restore()
+		if err != nil {
+			return nil, err
+		}
+		err = l.restore()
+		if err != nil {
+			return nil, err
+		}
 		return newToken(tokenKindBExpOpen, nullChar), nil
 	case ']':
 		return newToken(tokenKindBExpClose, nullChar), nil
@@ -141,7 +200,7 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 			}
 		}
 		switch {
-		case c == '\\' || c == '-' || c == ']':
+		case c == '\\' || c == '^' || c == '-' || c == ']':
 			return newToken(tokenKindChar, c), nil
 		default:
 			return nil, &SyntaxError{
@@ -154,32 +213,57 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 }
 
 func (l *lexer) read() (rune, bool, error) {
+	if l.reachedEOF {
+		return l.lastChar, l.reachedEOF, nil
+	}
+	if l.peekChar1 != nullChar || l.peekEOF1 {
+		l.prevChar2 = l.prevChar1
+		l.pervEOF2 = l.prevEOF1
+		l.prevChar1 = l.lastChar
+		l.prevEOF1 = l.reachedEOF
+		l.lastChar = l.peekChar1
+		l.reachedEOF = l.peekEOF1
+		l.peekChar1 = l.peekChar2
+		l.peekEOF1 = l.peekEOF2
+		l.peekChar2 = nullChar
+		l.peekEOF2 = false
+		return l.lastChar, l.reachedEOF, nil
+	}
 	c, _, err := l.src.ReadRune()
 	if err != nil {
 		if err == io.EOF {
-			l.prevChar = l.lastChar
+			l.prevChar2 = l.prevChar1
+			l.pervEOF2 = l.prevEOF1
+			l.prevChar1 = l.lastChar
+			l.prevEOF1 = l.reachedEOF
 			l.lastChar = nullChar
 			l.reachedEOF = true
-			return nullChar, true, nil
+			return l.lastChar, l.reachedEOF, nil
 		}
 		return nullChar, false, err
 	}
-	l.prevChar = l.lastChar
+	l.prevChar2 = l.prevChar1
+	l.pervEOF2 = l.prevEOF1
+	l.prevChar1 = l.lastChar
+	l.prevEOF1 = l.reachedEOF
 	l.lastChar = c
-	return c, false, nil
+	l.reachedEOF = false
+	return l.lastChar, l.reachedEOF, nil
 }
 
 func (l *lexer) restore() error {
-	if l.reachedEOF {
-		l.lastChar = l.prevChar
-		l.prevChar = nullChar
-		l.reachedEOF = false
-		return l.src.UnreadRune()
-	}
-	if l.lastChar == nullChar {
+	if l.lastChar == nullChar && !l.reachedEOF {
 		return fmt.Errorf("the lexer failed to call restore() because the last character is null")
 	}
-	l.lastChar = l.prevChar
-	l.prevChar = nullChar
-	return l.src.UnreadRune()
+	l.peekChar2 = l.peekChar1
+	l.peekEOF2 = l.peekEOF1
+	l.peekChar1 = l.lastChar
+	l.peekEOF1 = l.reachedEOF
+	l.lastChar = l.prevChar1
+	l.reachedEOF = l.prevEOF1
+	l.prevChar1 = l.prevChar2
+	l.prevEOF1 = l.pervEOF2
+	l.prevChar2 = nullChar
+	l.pervEOF2 = false
+	return nil
 }
