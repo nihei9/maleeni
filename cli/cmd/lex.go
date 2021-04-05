@@ -74,15 +74,14 @@ Date time: %v
 		if err != nil {
 			return err
 		}
+		data, err := json.Marshal(tok)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal a token; token: %v, error: %v\n", tok, err)
+		}
+		fmt.Fprintf(os.Stdout, "%v\n", string(data))
 		if tok.EOF {
 			break
 		}
-		if tok.Invalid {
-			fmt.Fprintf(os.Stdout, "-: -: ")
-		} else {
-			fmt.Fprintf(os.Stdout, "%v: %v: ", tok.ID, clspec.Kinds[tok.ID])
-		}
-		fmt.Fprintf(os.Stdout, "\"%v\"\n", string(tok.Match))
 	}
 
 	return nil

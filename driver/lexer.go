@@ -4,35 +4,71 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/nihei9/maleeni/log"
 	"github.com/nihei9/maleeni/spec"
 )
 
-type Token struct {
-	ID      int
-	Kind    string
-	Match   []byte
-	EOF     bool
-	Invalid bool
+type byteSequence []byte
+
+func newByteSequence(b []byte) byteSequence {
+	return byteSequence(b)
 }
 
-func newToken(id int, kind string, match []byte) *Token {
+func (s byteSequence) ByteSlice() []byte {
+	return []byte(s)
+}
+
+func (s byteSequence) String() string {
+	if len(s) <= 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%X", s[0])
+	for _, d := range s[1:] {
+		fmt.Fprintf(&b, " %X", d)
+	}
+	return b.String()
+}
+
+func (s byteSequence) GoString() string {
+	return fmt.Sprintf("\"%v\"", s.String())
+}
+
+func (s byteSequence) MarshalJSON() ([]byte, error) {
+	if len(s) <= 0 {
+		return []byte("[]"), nil
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "[%v", uint8(s[0]))
+	for _, e := range s[1:] {
+		fmt.Fprintf(&b, ", %v", uint8(e))
+	}
+	fmt.Fprintf(&b, "]")
+	return []byte(b.String()), nil
+}
+
+func (s byteSequence) merge(a byteSequence) byteSequence {
+	return append([]byte(s), []byte(a)...)
+}
+
+type Token struct {
+	ID      int          `json:"id"`
+	Kind    string       `json:"kind"`
+	Match   byteSequence `json:"match"`
+	Text    string       `json:"text"`
+	EOF     bool         `json:"eof"`
+	Invalid bool         `json:"invalid"`
+}
+
+func newToken(id int, kind string, match byteSequence) *Token {
 	return &Token{
 		ID:    id,
 		Kind:  kind,
 		Match: match,
+		Text:  string(match.ByteSlice()),
 	}
-}
-
-func (t *Token) String() string {
-	if t.Invalid {
-		return fmt.Sprintf("!{text: %v, byte: %v}", string(t.Match), t.Match)
-	}
-	if t.EOF {
-		return "{eof}"
-	}
-	return fmt.Sprintf("{id: %v, kind: %v, text: %v, byte: %v}", t.ID, t.Kind, string(t.Match), t.Match)
 }
 
 func newEOFToken() *Token {
@@ -42,12 +78,22 @@ func newEOFToken() *Token {
 	}
 }
 
-func newInvalidToken(match []byte) *Token {
+func newInvalidToken(match byteSequence) *Token {
 	return &Token{
 		ID:      0,
 		Match:   match,
 		Invalid: true,
 	}
+}
+
+func (t *Token) String() string {
+	if t.Invalid {
+		return fmt.Sprintf("!{text: %v, byte: %v}", t.Text, t.Match)
+	}
+	if t.EOF {
+		return "{eof}"
+	}
+	return fmt.Sprintf("{id: %v, kind: %v, text: %v, byte: %v}", t.ID, t.Kind, t.Text, t.Match)
 }
 
 type lexerOption func(l *lexer) error
@@ -131,7 +177,7 @@ func (l *lexer) Next() (*Token, error) {
 		if !tok.Invalid {
 			break
 		}
-		errTok.Match = append(errTok.Match, tok.Match...)
+		errTok.Match = errTok.Match.merge(tok.Match)
 		l.logger.Log("  error token: %v", errTok)
 	}
 	l.tokBuf = append(l.tokBuf, tok)
@@ -194,12 +240,12 @@ func (l *lexer) next() (*Token, error) {
 				l.unread(unfixedBufLen)
 				return tok, nil
 			}
-			return newInvalidToken(buf), nil
+			return newInvalidToken(newByteSequence(buf)), nil
 		}
 		state = nextState
 		id, ok := l.clspec.DFA.AcceptingStates[state]
 		if ok {
-			tok = newToken(id, l.clspec.Kinds[id], buf)
+			tok = newToken(id, l.clspec.Kinds[id], newByteSequence(buf))
 			unfixedBufLen = 0
 		}
 	}
