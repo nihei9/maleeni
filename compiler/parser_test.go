@@ -1,48 +1,10 @@
 package compiler
 
 import (
-	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"testing"
 )
-
-func printAST(w io.Writer, ast astNode, ruledLine string, childRuledLinePrefix string, withAttrs bool) {
-	if ast == nil {
-		return
-	}
-	fmt.Fprintf(w, ruledLine)
-	fmt.Fprintf(w, "node: %v", ast)
-	if withAttrs {
-		fmt.Fprintf(w, ", nullable: %v, first: %v, last: %v", ast.nullable(), ast.first(), ast.last())
-	}
-	fmt.Fprintf(w, "\n")
-	left, right := ast.children()
-	children := []astNode{}
-	if left != nil {
-		children = append(children, left)
-	}
-	if right != nil {
-		children = append(children, right)
-	}
-	num := len(children)
-	for i, child := range children {
-		line := "└─ "
-		if num > 1 {
-			if i == 0 {
-				line = "├─ "
-			} else if i < num-1 {
-				line = "│  "
-			}
-		}
-		prefix := "│  "
-		if i >= num-1 {
-			prefix = "    "
-		}
-		printAST(w, child, childRuledLinePrefix+line, childRuledLinePrefix+prefix, withAttrs)
-	}
-}
 
 func TestParser(t *testing.T) {
 	rune2Byte := func(char rune, index int) byte {
