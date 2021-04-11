@@ -7,40 +7,46 @@ import (
 	"strings"
 )
 
-type symbolPosition uint8
+type symbolPosition uint16
 
 const (
-	symbolPositionNil = symbolPosition(0)
+	symbolPositionNil = symbolPosition(0x0000) // 0000 0000 0000 0000
 
-	symbolPositionMaskSymbol  = uint8(0x00) // 0000 0000
-	symbolPositionMaskEndMark = uint8(0x80) // 1000 0000
+	symbolPositionMin = uint16(0x0001) // 0000 0000 0000 0001
+	symbolPositionMax = uint16(0x7fff) // 0111 1111 1111 1111
 
-	symbolPositionMaskValue = uint8(0x7f) // 0111 1111
+	symbolPositionMaskSymbol  = uint16(0x0000) // 0000 0000 0000 0000
+	symbolPositionMaskEndMark = uint16(0x8000) // 1000 0000 0000 0000
+
+	symbolPositionMaskValue = uint16(0x7fff) // 0111 1111 1111 1111
 )
 
-func newSymbolPosition(n uint8, endMark bool) symbolPosition {
-	if endMark {
-		return symbolPosition(n | symbolPositionMaskEndMark)
+func newSymbolPosition(n uint16, endMark bool) (symbolPosition, error) {
+	if n < symbolPositionMin || n > symbolPositionMax {
+		return symbolPositionNil, fmt.Errorf("symbol position must be within %v to %v; n: %v, endMark: %v", symbolPositionMin, symbolPositionMax, n, endMark)
 	}
-	return symbolPosition(n | symbolPositionMaskSymbol)
+	if endMark {
+		return symbolPosition(n | symbolPositionMaskEndMark), nil
+	}
+	return symbolPosition(n | symbolPositionMaskSymbol), nil
 }
 
 func (p symbolPosition) String() string {
 	if p.isEndMark() {
-		return fmt.Sprintf("end#%v", uint8(p)&symbolPositionMaskValue)
+		return fmt.Sprintf("end#%v", uint16(p)&symbolPositionMaskValue)
 	}
-	return fmt.Sprintf("sym#%v", uint8(p)&symbolPositionMaskValue)
+	return fmt.Sprintf("sym#%v", uint16(p)&symbolPositionMaskValue)
 }
 
 func (p symbolPosition) isEndMark() bool {
-	if uint8(p)&symbolPositionMaskEndMark > 1 {
+	if uint16(p)&symbolPositionMaskEndMark > 1 {
 		return true
 	}
 	return false
 }
 
-func (p symbolPosition) describe() (uint8, bool) {
-	v := uint8(p) & symbolPositionMaskValue
+func (p symbolPosition) describe() (uint16, bool) {
+	v := uint16(p) & symbolPositionMaskValue
 	if p.isEndMark() {
 		return v, true
 	}
@@ -421,24 +427,36 @@ func calcFollow(follow followTable, ast astNode) {
 	}
 }
 
-func positionSymbols(node astNode, n uint8) uint8 {
+func positionSymbols(node astNode, n uint16) (uint16, error) {
 	if node == nil {
-		return n
+		return n, nil
 	}
 
 	l, r := node.children()
 	p := n
-	p = positionSymbols(l, p)
-	p = positionSymbols(r, p)
+	p, err := positionSymbols(l, p)
+	if err != nil {
+		return p, err
+	}
+	p, err = positionSymbols(r, p)
+	if err != nil {
+		return p, err
+	}
 	switch n := node.(type) {
 	case *symbolNode:
-		n.pos = newSymbolPosition(p, false)
+		n.pos, err = newSymbolPosition(p, false)
+		if err != nil {
+			return p, err
+		}
 		p++
 	case *endMarkerNode:
-		n.pos = newSymbolPosition(p, true)
+		n.pos, err = newSymbolPosition(p, true)
+		if err != nil {
+			return p, err
+		}
 		p++
 	}
-	return p
+	return p, nil
 }
 
 func printAST(w io.Writer, ast astNode, ruledLine string, childRuledLinePrefix string, withAttrs bool) {

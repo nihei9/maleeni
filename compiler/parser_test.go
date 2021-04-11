@@ -8,12 +8,20 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	symPos := func(n uint8) symbolPosition {
-		return newSymbolPosition(n, false)
+	symPos := func(n uint16) symbolPosition {
+		pos, err := newSymbolPosition(n, false)
+		if err != nil {
+			panic(err)
+		}
+		return pos
 	}
 
-	endPos := func(n uint8) symbolPosition {
-		return newSymbolPosition(n, true)
+	endPos := func(n uint16) symbolPosition {
+		pos, err := newSymbolPosition(n, true)
+		if err != nil {
+			panic(err)
+		}
+		return pos
 	}
 
 	tests := []struct {

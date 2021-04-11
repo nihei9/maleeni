@@ -74,7 +74,10 @@ func parse(regexps map[int][]byte) (astNode, *symbolTable, error) {
 			root = newAltNode(root, n)
 		}
 	}
-	positionSymbols(root, 1)
+	_, err := positionSymbols(root, 1)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return root, genSymbolTable(root), nil
 }

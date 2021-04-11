@@ -16,12 +16,20 @@ func TestGenDFA(t *testing.T) {
 		t.Fatalf("DFA is nil")
 	}
 
-	symPos := func(n uint8) symbolPosition {
-		return newSymbolPosition(n, false)
+	symPos := func(n uint16) symbolPosition {
+		pos, err := newSymbolPosition(n, false)
+		if err != nil {
+			panic(err)
+		}
+		return pos
 	}
 
-	endPos := func(n uint8) symbolPosition {
-		return newSymbolPosition(n, true)
+	endPos := func(n uint16) symbolPosition {
+		pos, err := newSymbolPosition(n, true)
+		if err != nil {
+			panic(err)
+		}
+		return pos
 	}
 
 	s0 := newSymbolPositionSet().add(symPos(1)).add(symPos(2)).add(symPos(3))
