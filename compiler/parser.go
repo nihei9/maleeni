@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 )
@@ -96,23 +95,23 @@ func newParser(id int, src io.Reader) *parser {
 	}
 }
 
-func (p *parser) parse() (astNode, error) {
-	return p.parseRegexp()
-}
-
-func (p *parser) parseRegexp() (ast astNode, retErr error) {
+func (p *parser) parse() (ast astNode, retErr error) {
 	defer func() {
 		err := recover()
 		if err != nil {
-			retErr = err.(error)
-			var synErr SyntaxError
-			if !errors.Is(retErr, &synErr) {
-				panic(err)
+			var ok bool
+			retErr, ok = err.(error)
+			if !ok {
+				retErr = fmt.Errorf("Error: %v", err)
 			}
 			return
 		}
 	}()
 
+	return p.parseRegexp()
+}
+
+func (p *parser) parseRegexp() (astNode, error) {
 	alt := p.parseAlt()
 	p.expect(tokenKindEOF)
 	return newConcatNode(alt, newEndMarkerNode(p.id)), nil
@@ -120,11 +119,17 @@ func (p *parser) parseRegexp() (ast astNode, retErr error) {
 
 func (p *parser) parseAlt() astNode {
 	left := p.parseConcat()
+	if left == nil {
+		raiseSyntaxError("alternation expression must have operands")
+	}
 	for {
 		if !p.consume(tokenKindAlt) {
 			break
 		}
 		right := p.parseConcat()
+		if right == nil {
+			raiseSyntaxError("alternation expression must have operands")
+		}
 		left = newAltNode(left, right)
 	}
 	return left
@@ -144,6 +149,9 @@ func (p *parser) parseConcat() astNode {
 
 func (p *parser) parseRepeat() astNode {
 	group := p.parseGroup()
+	if group == nil {
+		return nil
+	}
 	if p.consume(tokenKindRepeat) {
 		return newRepeatNode(group)
 	}
@@ -159,7 +167,11 @@ func (p *parser) parseRepeat() astNode {
 func (p *parser) parseGroup() astNode {
 	if p.consume(tokenKindGroupOpen) {
 		defer p.expect(tokenKindGroupClose)
-		return p.parseAlt()
+		alt := p.parseAlt()
+		if alt == nil {
+			raiseSyntaxError("grouping expression must include at least one character")
+		}
+		return alt
 	}
 	return p.parseSingleChar()
 }
@@ -169,7 +181,6 @@ func (p *parser) parseSingleChar() astNode {
 		return genAnyCharAST()
 	}
 	if p.consume(tokenKindBExpOpen) {
-		defer p.expect(tokenKindBExpClose)
 		left := p.parseBExpElem()
 		if left == nil {
 			raiseSyntaxError("bracket expression must include at least one character")
@@ -181,10 +192,10 @@ func (p *parser) parseSingleChar() astNode {
 			}
 			left = newAltNode(left, right)
 		}
+		p.expect(tokenKindBExpClose)
 		return left
 	}
 	if p.consume(tokenKindInverseBExpOpen) {
-		defer p.expect(tokenKindBExpClose)
 		elem := p.parseBExpElem()
 		if elem == nil {
 			raiseSyntaxError("bracket expression must include at least one character")
@@ -203,6 +214,7 @@ func (p *parser) parseSingleChar() astNode {
 				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
 			}
 		}
+		p.expect(tokenKindBExpClose)
 		return inverse
 	}
 	return p.parseNormalChar()
@@ -210,6 +222,9 @@ func (p *parser) parseSingleChar() astNode {
 
 func (p *parser) parseBExpElem() astNode {
 	left := p.parseNormalChar()
+	if left == nil {
+		return nil
+	}
 	if !p.consume(tokenKindCharRange) {
 		return left
 	}
@@ -258,6 +273,14 @@ func exclude(symbol, base astNode) astNode {
 			exclude(symbol, left),
 			exclude(symbol, right),
 		)
+	case *concatNode:
+		baseSeq := genByteRangeSeq(base)
+		symSeq := genByteRangeSeq(symbol)
+		excluded := excludeByteRangeSequence(symSeq, baseSeq)
+		if len(excluded) <= 0 {
+			return nil
+		}
+		return convertByteRangeSeqsToAST(excluded)
 	case *symbolNode:
 		baseSeq := genByteRangeSeq(base)
 		symSeq := genByteRangeSeq(symbol)
@@ -448,6 +471,38 @@ func isValidOrder(from, to []byte) bool {
 	return true
 }
 
+type byteBoundsEntry struct {
+	min byte
+	max byte
+}
+
+var (
+	bounds1 = [][]byteBoundsEntry{
+		nil,
+		{{min: 0x00, max: 0x7f}},
+	}
+
+	bounds2 = [][]byteBoundsEntry{
+		nil,
+		{{min: 0xc2, max: 0xdf}, {min: 0x80, max: 0xbf}},
+	}
+
+	bounds3 = [][]byteBoundsEntry{
+		nil,
+		{{min: 0xe0, max: 0xe0}, {min: 0xa0, max: 0xbf}, {min: 0x80, max: 0xbf}},
+		{{min: 0xe1, max: 0xec}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
+		{{min: 0xed, max: 0xed}, {min: 0x80, max: 0x9f}, {min: 0x80, max: 0xbf}},
+		{{min: 0xee, max: 0xef}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
+	}
+
+	bounds4 = [][]byteBoundsEntry{
+		nil,
+		{{min: 0xf0, max: 0xf0}, {min: 0x90, max: 0xbf}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
+		{{min: 0xf1, max: 0xf3}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
+		{{min: 0xf4, max: 0xf4}, {min: 0x80, max: 0x8f}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
+	}
+)
+
 func gen1ByteCharRangeAST(from, to []byte) astNode {
 	return newRangeSymbolNode(from[0], to[0])
 }
@@ -480,28 +535,6 @@ func gen2ByteCharRangeAST(from, to []byte) astNode {
 		return newAltNode(alt1, alt2)
 	}
 }
-
-type byteBoundsEntry struct {
-	min byte
-	max byte
-}
-
-var (
-	bounds3 = [][]byteBoundsEntry{
-		nil,
-		{{min: 0xe0, max: 0xe0}, {min: 0xa0, max: 0xbf}, {min: 0x80, max: 0xbf}},
-		{{min: 0xe1, max: 0xec}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
-		{{min: 0xed, max: 0xed}, {min: 0x80, max: 0x9f}, {min: 0x80, max: 0xbf}},
-		{{min: 0xee, max: 0xef}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
-	}
-
-	bounds4 = [][]byteBoundsEntry{
-		nil,
-		{{min: 0xf0, max: 0xf0}, {min: 0x90, max: 0xbf}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
-		{{min: 0xf1, max: 0xf3}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
-		{{min: 0xf4, max: 0xf4}, {min: 0x80, max: 0x8f}, {min: 0x80, max: 0xbf}, {min: 0x80, max: 0xbf}},
-	}
-)
 
 func get3ByteCharRangeNum(seq []byte) int {
 	head := seq[0]

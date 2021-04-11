@@ -31,7 +31,7 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the special characters",
-			src:     ".*+?|()[-][^^]",
+			src:     ".*+?|()[a-z][^^]",
 			tokens: []*token{
 				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
@@ -41,7 +41,9 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindGroupOpen, nullChar),
 				newToken(tokenKindGroupClose, nullChar),
 				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
 				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, 'z'),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindInverseBExpOpen, nullChar),
 				newToken(tokenKindChar, '^'),
@@ -94,6 +96,75 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindChar, '-'),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "hyphen symbols that appear in bracket expressions are handled as the character range symbol or ordinary characters",
+			// [...-...][...-][-...][-]
+			//  ~~~~~~~     ~  ~     ~
+			//     ^        ^  ^     ^
+			//     |        |  |     `-- Ordinary Character (b)
+			//     |        |  `-- Ordinary Character (b)
+			//     |        `-- Ordinary Character (b)
+			//     `-- Character Range (a)
+			//
+			// a. *-* is handled as a character range expression.
+			// b. *-, -*, or - are handled as ordinary characters.
+			src: "[a-z][a-][-z][-][--][---][^a-z][^a-][^-z][^-][^--][^---]",
+			tokens: []*token{
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, '-'),
+				newToken(tokenKindBExpClose, nullChar),
+
 				newToken(tokenKindEOF, nullChar),
 			},
 		},

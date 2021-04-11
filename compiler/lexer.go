@@ -45,6 +45,20 @@ const (
 	lexerModeBExp    = lexerMode("bracket expression")
 )
 
+type rangeState string
+
+// [a-z]
+// ^^^^
+// |||`-- ready
+// ||`-- expect range terminator
+// |`-- read range initiator
+// `-- ready
+const (
+	rangeStateReady                 = rangeState("ready")
+	rangeStateReadRangeInitiator    = rangeState("read range initiator")
+	rangeStateExpectRangeTerminator = rangeState("expect range terminator")
+)
+
 type lexer struct {
 	src        *bufio.Reader
 	peekChar2  rune
@@ -58,6 +72,7 @@ type lexer struct {
 	prevChar2  rune
 	pervEOF2   bool
 	mode       lexerMode
+	rangeState rangeState
 }
 
 func newLexer(src io.Reader) *lexer {
@@ -74,6 +89,7 @@ func newLexer(src io.Reader) *lexer {
 		prevChar2:  nullChar,
 		pervEOF2:   false,
 		mode:       lexerModeDefault,
+		rangeState: rangeStateReady,
 	}
 }
 
@@ -88,9 +104,38 @@ func (l *lexer) next() (*token, error) {
 
 	switch l.mode {
 	case lexerModeBExp:
-		return l.nextInBExp(c)
+		tok, err := l.nextInBExp(c)
+		if err != nil {
+			return nil, err
+		}
+		switch tok.kind {
+		case tokenKindBExpClose:
+			l.mode = lexerModeDefault
+		case tokenKindCharRange:
+			l.rangeState = rangeStateExpectRangeTerminator
+		case tokenKindChar:
+			switch l.rangeState {
+			case rangeStateReady:
+				l.rangeState = rangeStateReadRangeInitiator
+			case rangeStateExpectRangeTerminator:
+				l.rangeState = rangeStateReady
+			}
+		}
+		return tok, nil
 	default:
-		return l.nextInDefault(c)
+		tok, err := l.nextInDefault(c)
+		if err != nil {
+			return nil, err
+		}
+		switch tok.kind {
+		case tokenKindBExpOpen:
+			l.mode = lexerModeBExp
+			l.rangeState = rangeStateReady
+		case tokenKindInverseBExpOpen:
+			l.mode = lexerModeBExp
+			l.rangeState = rangeStateReady
+		}
+		return tok, nil
 	}
 }
 
@@ -111,7 +156,6 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 	case ')':
 		return newToken(tokenKindGroupClose, nullChar), nil
 	case '[':
-		l.mode = lexerModeBExp
 		c1, eof, err := l.read()
 		if err != nil {
 			return nil, err
@@ -185,9 +229,33 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 func (l *lexer) nextInBExp(c rune) (*token, error) {
 	switch c {
 	case '-':
-		return newToken(tokenKindCharRange, nullChar), nil
+		if l.rangeState != rangeStateReadRangeInitiator {
+			return newToken(tokenKindChar, c), nil
+		}
+		c1, eof, err := l.read()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindCharRange, nullChar), nil
+		}
+		if c1 != ']' {
+			err := l.restore()
+			if err != nil {
+				return nil, err
+			}
+			return newToken(tokenKindCharRange, nullChar), nil
+		}
+		err = l.restore()
+		if err != nil {
+			return nil, err
+		}
+		return newToken(tokenKindChar, c), nil
 	case ']':
-		l.mode = lexerModeDefault
 		return newToken(tokenKindBExpClose, nullChar), nil
 	case '\\':
 		c, eof, err := l.read()

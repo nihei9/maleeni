@@ -331,7 +331,7 @@ func newRepeatOneOrMoreNode(left astNode) *concatNode {
 	return newConcatNode(
 		left,
 		&repeatNode{
-			left: left,
+			left: copyAST(left),
 		})
 }
 
@@ -367,6 +367,24 @@ func (n *optionNode) last() symbolPositionSet {
 	s := newSymbolPositionSet()
 	s.merge(n.left.last())
 	return s
+}
+
+func copyAST(src astNode) astNode {
+	switch n := src.(type) {
+	case *symbolNode:
+		return newRangeSymbolNode(n.from, n.to)
+	case *endMarkerNode:
+		return newEndMarkerNode(n.id)
+	case *concatNode:
+		return newConcatNode(copyAST(n.left), copyAST(n.right))
+	case *altNode:
+		return newAltNode(copyAST(n.left), copyAST(n.right))
+	case *repeatNode:
+		return newRepeatNode(copyAST(n.left))
+	case *optionNode:
+		return newOptionNode(copyAST(n.left))
+	}
+	panic(fmt.Errorf("copyAST cannot handle %T type; AST: %v", src, src))
 }
 
 type followTable map[symbolPosition]symbolPositionSet
