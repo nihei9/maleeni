@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -30,8 +29,8 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
-			caption: "lexer can recognize the special characters",
-			src:     ".*+?|()[a-z][^^]",
+			caption: "lexer can recognize the special characters in default mode",
+			src:     ".*+?|()[",
 			tokens: []*token{
 				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
@@ -41,19 +40,12 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindGroupOpen, nullChar),
 				newToken(tokenKindGroupClose, nullChar),
 				newToken(tokenKindBExpOpen, nullChar),
-				newToken(tokenKindChar, 'a'),
-				newToken(tokenKindCharRange, nullChar),
-				newToken(tokenKindChar, 'z'),
-				newToken(tokenKindBExpClose, nullChar),
-				newToken(tokenKindInverseBExpOpen, nullChar),
-				newToken(tokenKindChar, '^'),
-				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
 		{
-			caption: "lexer can recognize the escape sequences",
-			src:     "\\\\\\.\\*\\+\\?\\|\\(\\)\\[\\][\\^\\-]",
+			caption: "lexer can recognize the escape sequences in default mode",
+			src:     "\\\\\\.\\*\\+\\?\\|\\(\\)\\[",
 			tokens: []*token{
 				newToken(tokenKindChar, '\\'),
 				newToken(tokenKindChar, '.'),
@@ -64,17 +56,50 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindChar, '('),
 				newToken(tokenKindChar, ')'),
 				newToken(tokenKindChar, '['),
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "] is treated as an ordinary character in default mode",
+			src:     "]",
+			tokens: []*token{
 				newToken(tokenKindChar, ']'),
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "lexer can recognize the special characters in bracket expression mode",
+			src:     "[a-z][^a-z]",
+			tokens: []*token{
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindChar, 'a'),
+				newToken(tokenKindCharRange, nullChar),
+				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindBExpClose, nullChar),
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "lexer can recognize the escape sequences in bracket expression mode",
+			src:     "[\\^a\\-z]",
+			tokens: []*token{
 				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindChar, '^'),
+				newToken(tokenKindChar, 'a'),
 				newToken(tokenKindChar, '-'),
+				newToken(tokenKindChar, 'z'),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
 		{
 			caption: "in a bracket expression, the special characters are also handled as normal characters",
-			src:     "[\\\\.*+?|()[\\]].*|()-][",
+			src:     "[\\\\.*+?|()[",
 			tokens: []*token{
 				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindChar, '\\'),
@@ -86,16 +111,6 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindChar, '('),
 				newToken(tokenKindChar, ')'),
 				newToken(tokenKindChar, '['),
-				newToken(tokenKindChar, ']'),
-				newToken(tokenKindBExpClose, nullChar),
-				newToken(tokenKindAnyChar, nullChar),
-				newToken(tokenKindRepeat, nullChar),
-				newToken(tokenKindAlt, nullChar),
-				newToken(tokenKindGroupOpen, nullChar),
-				newToken(tokenKindGroupClose, nullChar),
-				newToken(tokenKindChar, '-'),
-				newToken(tokenKindBExpClose, nullChar),
-				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
@@ -195,12 +210,28 @@ func TestLexer(t *testing.T) {
 		{
 			caption: "lexer raises an error when an invalid escape sequence appears",
 			src:     "\\@",
-			err:     &SyntaxError{},
+			err:     synErrInvalidEscSeq,
 		},
 		{
 			caption: "lexer raises an error when the incomplete escape sequence (EOF following \\) appears",
 			src:     "\\",
-			err:     &SyntaxError{},
+			err:     synErrIncompletedEscSeq,
+		},
+		{
+			caption: "lexer raises an error when an invalid escape sequence appears",
+			src:     "[\\@",
+			tokens: []*token{
+				newToken(tokenKindBExpOpen, nullChar),
+			},
+			err: synErrInvalidEscSeq,
+		},
+		{
+			caption: "lexer raises an error when the incomplete escape sequence (EOF following \\) appears",
+			src:     "[\\",
+			tokens: []*token{
+				newToken(tokenKindBExpOpen, nullChar),
+			},
+			err: synErrIncompletedEscSeq,
 		},
 	}
 	for _, tt := range tests {
@@ -225,10 +256,8 @@ func TestLexer(t *testing.T) {
 					break
 				}
 			}
-			ty := reflect.TypeOf(err)
-			eTy := reflect.TypeOf(tt.err)
-			if ty != eTy {
-				t.Fatalf("unexpected error type; want: %v, got: %v", eTy, ty)
+			if err != tt.err {
+				t.Fatalf("unexpected error; want: %v, got: %v", tt.err, err)
 			}
 			if i < len(tt.tokens) {
 				t.Fatalf("expecte more tokens")

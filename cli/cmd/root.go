@@ -1,6 +1,11 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "maleeni",
@@ -9,9 +14,15 @@ var rootCmd = &cobra.Command{
 * Generates a portable DFA from a lexical specification.
 * Tokenizes a text stream according to the lexical specification.
   This feature is primarily aimed at debugging the lexical specification.`,
-	SilenceUsage: true,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func Execute() error {
-	return rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return err
+	}
+	return nil
 }

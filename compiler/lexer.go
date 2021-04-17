@@ -60,19 +60,20 @@ const (
 )
 
 type lexer struct {
-	src        *bufio.Reader
-	peekChar2  rune
-	peekEOF2   bool
-	peekChar1  rune
-	peekEOF1   bool
-	lastChar   rune
-	reachedEOF bool
-	prevChar1  rune
-	prevEOF1   bool
-	prevChar2  rune
-	pervEOF2   bool
-	mode       lexerMode
-	rangeState rangeState
+	src           *bufio.Reader
+	peekChar2     rune
+	peekEOF2      bool
+	peekChar1     rune
+	peekEOF1      bool
+	lastChar      rune
+	reachedEOF    bool
+	prevChar1     rune
+	prevEOF1      bool
+	prevChar2     rune
+	pervEOF2      bool
+	mode          lexerMode
+	rangeState    rangeState
+	errMsgDetails string
 }
 
 func newLexer(src io.Reader) *lexer {
@@ -201,26 +202,19 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 			return nil, err
 		}
 		return newToken(tokenKindBExpOpen, nullChar), nil
-	case ']':
-		return newToken(tokenKindBExpClose, nullChar), nil
 	case '\\':
 		c, eof, err := l.read()
 		if err != nil {
 			return nil, err
 		}
 		if eof {
-			return nil, &SyntaxError{
-				message: "incompleted escape sequence; unexpected EOF follows \\ character",
-			}
+			return nil, synErrIncompletedEscSeq
 		}
-		switch {
-		case c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']':
+		if c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']' {
 			return newToken(tokenKindChar, c), nil
-		default:
-			return nil, &SyntaxError{
-				message: fmt.Sprintf("invalid escape sequence '\\%s'", string(c)),
-			}
 		}
+		l.errMsgDetails = fmt.Sprintf("\\%v is not supported", string(c))
+		return nil, synErrInvalidEscSeq
 	default:
 		return newToken(tokenKindChar, c), nil
 	}
@@ -241,7 +235,7 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 			if err != nil {
 				return nil, err
 			}
-			return newToken(tokenKindCharRange, nullChar), nil
+			return newToken(tokenKindChar, c), nil
 		}
 		if c1 != ']' {
 			err := l.restore()
@@ -263,18 +257,13 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 			return nil, err
 		}
 		if eof {
-			return nil, &SyntaxError{
-				message: "incompleted escape sequence; unexpected EOF follows \\ character",
-			}
+			return nil, synErrIncompletedEscSeq
 		}
-		switch {
-		case c == '\\' || c == '^' || c == '-' || c == ']':
+		if c == '\\' || c == '^' || c == '-' || c == ']' {
 			return newToken(tokenKindChar, c), nil
-		default:
-			return nil, &SyntaxError{
-				message: fmt.Sprintf("invalid escape sequence '\\%s'", string(c)),
-			}
 		}
+		l.errMsgDetails = fmt.Sprintf("\\%v is not supported", string(c))
+		return nil, synErrInvalidEscSeq
 	default:
 		return newToken(tokenKindChar, c), nil
 	}

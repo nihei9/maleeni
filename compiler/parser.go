@@ -4,20 +4,40 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
-type SyntaxError struct {
-	message string
+type ParseErrors struct {
+	Errors []*ParseError
 }
 
-func (err *SyntaxError) Error() string {
-	return fmt.Sprintf("Syntax Error: %v", err.message)
+func (e *ParseErrors) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%v", e.Errors[0])
+	for _, err := range e.Errors[1:] {
+		fmt.Fprintf(&b, "\n%v", err)
+	}
+	return b.String()
 }
 
-func raiseSyntaxError(format string, a ...interface{}) {
-	panic(&SyntaxError{
-		message: fmt.Sprintf(format, a...),
-	})
+type ParseError struct {
+	ID      int
+	Pattern []byte
+	Cause   error
+	Details string
+}
+
+func (e *ParseError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "#%v %v: %v", e.ID, string(e.Pattern), e.Cause)
+	if e.Details != "" {
+		fmt.Fprintf(&b, ": %v", e.Details)
+	}
+	return b.String()
+}
+
+func raiseSyntaxError(synErr *SyntaxError) {
+	panic(synErr)
 }
 
 type symbolTable struct {
@@ -58,43 +78,58 @@ func parse(regexps map[int][]byte) (astNode, *symbolTable, error) {
 	if len(regexps) == 0 {
 		return nil, nil, fmt.Errorf("parse() needs at least one token entry")
 	}
+	symPos := symbolPositionMin
 	var root astNode
-	for id, re := range regexps {
-		if len(re) == 0 {
-			return nil, nil, fmt.Errorf("regular expression must be a non-empty byte sequence")
-		}
-		p := newParser(id, bytes.NewReader(re))
-		n, err := p.parse()
+	var perrs []*ParseError
+	for id, pattern := range regexps {
+		p := newParser(id, symPos, bytes.NewReader(pattern))
+		ast, err := p.parse()
 		if err != nil {
-			return nil, nil, err
+			perr := &ParseError{
+				ID:      id,
+				Pattern: pattern,
+				Cause:   err,
+				Details: p.errMsgDetails,
+			}
+			if p.errMsgDetails != "" {
+				perr.Details = p.errMsgDetails
+			}
+			perrs = append(perrs, perr)
+			continue
 		}
 		if root == nil {
-			root = n
+			root = ast
 		} else {
-			root = newAltNode(root, n)
+			root = newAltNode(root, ast)
 		}
+		symPos = p.symPos
 	}
-	_, err := positionSymbols(root, 1)
-	if err != nil {
-		return nil, nil, err
+	if len(perrs) > 0 {
+		return nil, nil, &ParseErrors{
+			Errors: perrs,
+		}
 	}
 
 	return root, genSymbolTable(root), nil
 }
 
 type parser struct {
-	id        int
-	lex       *lexer
-	peekedTok *token
-	lastTok   *token
+	id            int
+	lex           *lexer
+	peekedTok     *token
+	lastTok       *token
+	errMsgDetails string
+	symPos        uint16
 }
 
-func newParser(id int, src io.Reader) *parser {
+func newParser(id int, initialSymPos uint16, src io.Reader) *parser {
 	return &parser{
-		id:        id,
-		lex:       newLexer(src),
-		peekedTok: nil,
-		lastTok:   nil,
+		id:            id,
+		lex:           newLexer(src),
+		peekedTok:     nil,
+		lastTok:       nil,
+		errMsgDetails: "",
+		symPos:        initialSymPos,
 	}
 }
 
@@ -105,17 +140,34 @@ func (p *parser) parse() (ast astNode, retErr error) {
 			var ok bool
 			retErr, ok = err.(error)
 			if !ok {
-				retErr = fmt.Errorf("Error: %v", err)
+				retErr = fmt.Errorf("%v", err)
 			}
 			return
 		}
 	}()
 
-	return p.parseRegexp()
+	ast, err := p.parseRegexp()
+	if err != nil {
+		return nil, err
+	}
+	p.symPos, err = positionSymbols(ast, p.symPos)
+	if err != nil {
+		return nil, err
+	}
+	return ast, nil
 }
 
 func (p *parser) parseRegexp() (astNode, error) {
 	alt := p.parseAlt()
+	if alt == nil {
+		if p.consume(tokenKindGroupClose) {
+			raiseSyntaxError(synErrGroupNoInitiator)
+		}
+		raiseSyntaxError(synErrNullPattern)
+	}
+	if p.consume(tokenKindGroupClose) {
+		raiseSyntaxError(synErrGroupNoInitiator)
+	}
 	p.expect(tokenKindEOF)
 	return newConcatNode(alt, newEndMarkerNode(p.id)), nil
 }
@@ -123,7 +175,10 @@ func (p *parser) parseRegexp() (astNode, error) {
 func (p *parser) parseAlt() astNode {
 	left := p.parseConcat()
 	if left == nil {
-		raiseSyntaxError("alternation expression must have operands")
+		if p.consume(tokenKindAlt) {
+			raiseSyntaxError(synErrAltLackOfOperand)
+		}
+		return nil
 	}
 	for {
 		if !p.consume(tokenKindAlt) {
@@ -131,7 +186,7 @@ func (p *parser) parseAlt() astNode {
 		}
 		right := p.parseConcat()
 		if right == nil {
-			raiseSyntaxError("alternation expression must have operands")
+			raiseSyntaxError(synErrAltLackOfOperand)
 		}
 		left = newAltNode(left, right)
 	}
@@ -153,6 +208,18 @@ func (p *parser) parseConcat() astNode {
 func (p *parser) parseRepeat() astNode {
 	group := p.parseGroup()
 	if group == nil {
+		if p.consume(tokenKindRepeat) {
+			p.errMsgDetails = "* needs an operand"
+			raiseSyntaxError(synErrRepNoTarget)
+		}
+		if p.consume(tokenKindRepeatOneOrMore) {
+			p.errMsgDetails = "+ needs an operand"
+			raiseSyntaxError(synErrRepNoTarget)
+		}
+		if p.consume(tokenKindOption) {
+			p.errMsgDetails = "? needs an operand"
+			raiseSyntaxError(synErrRepNoTarget)
+		}
 		return nil
 	}
 	if p.consume(tokenKindRepeat) {
@@ -169,10 +236,18 @@ func (p *parser) parseRepeat() astNode {
 
 func (p *parser) parseGroup() astNode {
 	if p.consume(tokenKindGroupOpen) {
-		defer p.expect(tokenKindGroupClose)
 		alt := p.parseAlt()
 		if alt == nil {
-			raiseSyntaxError("grouping expression must include at least one character")
+			if p.consume(tokenKindEOF) {
+				raiseSyntaxError(synErrGroupUnclosed)
+			}
+			raiseSyntaxError(synErrGroupNoElem)
+		}
+		if p.consume(tokenKindEOF) {
+			raiseSyntaxError(synErrGroupUnclosed)
+		}
+		if !p.consume(tokenKindGroupClose) {
+			raiseSyntaxError(synErrGroupInvalidForm)
 		}
 		return alt
 	}
@@ -186,7 +261,10 @@ func (p *parser) parseSingleChar() astNode {
 	if p.consume(tokenKindBExpOpen) {
 		left := p.parseBExpElem()
 		if left == nil {
-			raiseSyntaxError("bracket expression must include at least one character")
+			if p.consume(tokenKindEOF) {
+				raiseSyntaxError(synErrBExpUnclosed)
+			}
+			raiseSyntaxError(synErrBExpNoElem)
 		}
 		for {
 			right := p.parseBExpElem()
@@ -195,13 +273,19 @@ func (p *parser) parseSingleChar() astNode {
 			}
 			left = newAltNode(left, right)
 		}
+		if p.consume(tokenKindEOF) {
+			raiseSyntaxError(synErrBExpUnclosed)
+		}
 		p.expect(tokenKindBExpClose)
 		return left
 	}
 	if p.consume(tokenKindInverseBExpOpen) {
 		elem := p.parseBExpElem()
 		if elem == nil {
-			raiseSyntaxError("bracket expression must include at least one character")
+			if p.consume(tokenKindEOF) {
+				raiseSyntaxError(synErrBExpUnclosed)
+			}
+			raiseSyntaxError(synErrBExpNoElem)
 		}
 		inverse := exclude(elem, genAnyCharAST())
 		if inverse == nil {
@@ -217,10 +301,20 @@ func (p *parser) parseSingleChar() astNode {
 				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
 			}
 		}
+		if p.consume(tokenKindEOF) {
+			raiseSyntaxError(synErrBExpUnclosed)
+		}
 		p.expect(tokenKindBExpClose)
 		return inverse
 	}
-	return p.parseNormalChar()
+	c := p.parseNormalChar()
+	if c == nil {
+		if p.consume(tokenKindBExpClose) {
+			raiseSyntaxError(synErrBExpInvalidForm)
+		}
+		return nil
+	}
+	return c
 }
 
 func (p *parser) parseBExpElem() astNode {
@@ -233,7 +327,13 @@ func (p *parser) parseBExpElem() astNode {
 	}
 	right := p.parseNormalChar()
 	if right == nil {
-		raiseSyntaxError("invalid range expression")
+		panic(fmt.Errorf("invalid range expression"))
+	}
+	from := genByteSeq(left)
+	to := genByteSeq(right)
+	if !isValidOrder(from, to) {
+		p.errMsgDetails = fmt.Sprintf("[%s-%s] ([%v-%v])", string(from), string(to), from, to)
+		raiseSyntaxError(synErrRangeInvalidOrder)
 	}
 	return genRangeAST(left, right)
 }
@@ -372,9 +472,6 @@ func genAnyCharAST() astNode {
 func genRangeAST(fromNode, toNode astNode) astNode {
 	from := genByteSeq(fromNode)
 	to := genByteSeq(toNode)
-	if !isValidOrder(from, to) {
-		raiseSyntaxError("range expression with invalid order: [%s-%s] ([%v-%v])", string(from), string(to), from, to)
-	}
 	switch len(from) {
 	case 1:
 		switch len(to) {
@@ -993,8 +1090,8 @@ func genAltNode(cs ...astNode) astNode {
 func (p *parser) expect(expected tokenKind) {
 	if !p.consume(expected) {
 		tok := p.peekedTok
-		errMsg := fmt.Sprintf("unexpected token; expected: %v, actual: %v", expected, tok.kind)
-		raiseSyntaxError(errMsg)
+		p.errMsgDetails = fmt.Sprintf("unexpected token; expected: %v, actual: %v", expected, tok.kind)
+		raiseSyntaxError(synErrUnexpectedToken)
 	}
 }
 
@@ -1007,6 +1104,7 @@ func (p *parser) consume(expected tokenKind) bool {
 	} else {
 		tok, err = p.lex.next()
 		if err != nil {
+			p.errMsgDetails = p.lex.errMsgDetails
 			panic(err)
 		}
 	}

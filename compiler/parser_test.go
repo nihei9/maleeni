@@ -1,47 +1,44 @@
 package compiler
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"reflect"
 	"testing"
 )
 
-func TestParse(t *testing.T) {
-	symPos := func(n uint16) symbolPosition {
-		pos, err := newSymbolPosition(n, false)
-		if err != nil {
-			panic(err)
-		}
-		return pos
+func symPos(n uint16) symbolPosition {
+	pos, err := newSymbolPosition(n, false)
+	if err != nil {
+		panic(err)
 	}
+	return pos
+}
 
-	endPos := func(n uint16) symbolPosition {
-		pos, err := newSymbolPosition(n, true)
-		if err != nil {
-			panic(err)
-		}
-		return pos
+func endPos(n uint16) symbolPosition {
+	pos, err := newSymbolPosition(n, true)
+	if err != nil {
+		panic(err)
 	}
+	return pos
+}
 
+func TestParser_parse(t *testing.T) {
 	tests := []struct {
-		patterns    []string
+		pattern     string
 		ast         astNode
-		syntaxError bool
+		syntaxError *SyntaxError
 	}{
 		{
-			patterns: []string{
-				"a",
-			},
+			pattern: "a",
 			ast: genConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"abc",
-			},
+			pattern: "abc",
 			ast: genConcatNode(
 				genConcatNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -52,9 +49,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"a?",
-			},
+			pattern: "a?",
 			ast: genConcatNode(
 				newOptionNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -63,9 +58,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[abc]?",
-			},
+			pattern: "[abc]?",
 			ast: genConcatNode(
 				newOptionNode(
 					genAltNode(
@@ -78,9 +71,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(a)?",
-			},
+			pattern: "(a)?",
 			ast: genConcatNode(
 				newOptionNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -89,9 +80,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"((a?)?)?",
-			},
+			pattern: "((a?)?)?",
 			ast: genConcatNode(
 				newOptionNode(
 					newOptionNode(
@@ -104,9 +93,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(abc)?",
-			},
+			pattern: "(abc)?",
 			ast: genConcatNode(
 				newOptionNode(
 					genConcatNode(
@@ -119,9 +106,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(a|b)?",
-			},
+			pattern: "(a|b)?",
 			ast: genConcatNode(
 				newOptionNode(
 					genAltNode(
@@ -133,21 +118,27 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"?",
-			},
-			syntaxError: true,
+			pattern:     "?",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				"a??",
-			},
-			syntaxError: true,
+			pattern:     "(?)",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				"a*",
-			},
+			pattern:     "a|?",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "?|b",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "a??",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern: "a*",
 			ast: genConcatNode(
 				newRepeatNode(
 					newSymbolNodeWithPos(byte('a'), 1),
@@ -156,9 +147,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[abc]*",
-			},
+			pattern: "[abc]*",
 			ast: genConcatNode(
 				newRepeatNode(
 					genAltNode(
@@ -171,9 +160,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"((a*)*)*",
-			},
+			pattern: "((a*)*)*",
 			ast: genConcatNode(
 				newRepeatNode(
 					newRepeatNode(
@@ -186,9 +173,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(abc)*",
-			},
+			pattern: "(abc)*",
 			ast: genConcatNode(
 				newRepeatNode(
 					genConcatNode(
@@ -201,9 +186,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(a|b)*",
-			},
+			pattern: "(a|b)*",
 			ast: genConcatNode(
 				newRepeatNode(
 					genAltNode(
@@ -215,21 +198,27 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"*",
-			},
-			syntaxError: true,
+			pattern:     "*",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				"a**",
-			},
-			syntaxError: true,
+			pattern:     "(*)",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				"a+",
-			},
+			pattern:     "a|*",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "*|b",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "a**",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern: "a+",
 			ast: genConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
 				newRepeatNode(
@@ -239,9 +228,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[abc]+",
-			},
+			pattern: "[abc]+",
 			ast: genConcatNode(
 				genAltNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -259,9 +246,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"((a+)+)+",
-			},
+			pattern: "((a+)+)+",
 			ast: genConcatNode(
 				genConcatNode(
 					genConcatNode(
@@ -303,9 +288,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(abc)+",
-			},
+			pattern: "(abc)+",
 			ast: genConcatNode(
 				genConcatNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -323,9 +306,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(a|b)+",
-			},
+			pattern: "(a|b)+",
 			ast: genConcatNode(
 				genAltNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -341,21 +322,27 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"+",
-			},
-			syntaxError: true,
+			pattern:     "+",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				"a++",
-			},
-			syntaxError: true,
+			pattern:     "(+)",
+			syntaxError: synErrRepNoTarget,
 		},
 		{
-			patterns: []string{
-				".",
-			},
+			pattern:     "a|+",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "+|b",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern:     "a++",
+			syntaxError: synErrRepNoTarget,
+		},
+		{
+			pattern: ".",
 			ast: newConcatNode(
 				genAltNode(
 					newRangeSymbolNodeWithPos(bounds1[1][0].min, bounds1[1][0].max, symPos(1)),
@@ -406,18 +393,14 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[a]",
-			},
+			pattern: "[a]",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"[abc]",
-			},
+			pattern: "[abc]",
 			ast: newConcatNode(
 				genAltNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -428,18 +411,14 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[a-z]",
-			},
+			pattern: "[a-z]",
 			ast: newConcatNode(
 				newRangeSymbolNodeWithPos(byte('a'), byte('z'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"[A-Za-z]",
-			},
+			pattern: "[A-Za-z]",
 			ast: newConcatNode(
 				genAltNode(
 					newRangeSymbolNodeWithPos(byte('A'), byte('Z'), symPos(1)),
@@ -449,78 +428,107 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"a[]",
-			},
-			syntaxError: true,
+			pattern:     "a[]",
+			syntaxError: synErrBExpNoElem,
 		},
 		{
-			patterns: []string{
-				"[]a",
-			},
-			syntaxError: true,
+			pattern:     "[]a",
+			syntaxError: synErrBExpNoElem,
 		},
 		{
-			patterns: []string{
-				"[]",
-			},
-			syntaxError: true,
+			pattern:     "[]",
+			syntaxError: synErrBExpNoElem,
 		},
 		{
-			patterns: []string{
-				"[^]",
-			},
+			pattern: "[^]",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('^'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"[",
-			},
-			syntaxError: true,
+			pattern:     "[",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[a",
-			},
-			syntaxError: true,
+			pattern:     "([",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[a-",
-			},
-			syntaxError: true,
+			pattern:     "[a",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[^",
-			},
-			syntaxError: true,
+			pattern:     "([a",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[^a",
-			},
-			syntaxError: true,
+			pattern:     "[a-",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[^a-",
-			},
-			syntaxError: true,
+			pattern:     "([a-",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"]",
-			},
-			syntaxError: true,
+			pattern:     "[^",
+			syntaxError: synErrBExpUnclosed,
 		},
 		{
-			patterns: []string{
-				"[a-]",
-			},
+			pattern:     "([^",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern:     "[^a",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern:     "([^a",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern:     "[^a-",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern:     "([^a-",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern: "]",
+			ast: newConcatNode(
+				newSymbolNodeWithPos(byte(']'), symPos(1)),
+				newEndMarkerNodeWithPos(1, endPos(2)),
+			),
+		},
+		{
+			pattern:     "(]",
+			syntaxError: synErrGroupUnclosed,
+		},
+		{
+			pattern: "a]",
+			ast: newConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(byte('a'), symPos(1)),
+					newSymbolNodeWithPos(byte(']'), symPos(2)),
+				),
+				newEndMarkerNodeWithPos(1, endPos(3)),
+			),
+		},
+		{
+			pattern:     "(a]",
+			syntaxError: synErrGroupUnclosed,
+		},
+		{
+			pattern:     "([)",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern:     "([a)",
+			syntaxError: synErrBExpUnclosed,
+		},
+		{
+			pattern: "[a-]",
 			ast: newConcatNode(
 				genAltNode(
 					newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -530,9 +538,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[^a-]",
-			},
+			pattern: "[^a-]",
 			ast: newConcatNode(
 				genAltNode(
 					newRangeSymbolNodeWithPos(bounds1[1][0].min, byte(44), symPos(1)),
@@ -585,9 +591,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[-z]",
-			},
+			pattern: "[-z]",
 			ast: newConcatNode(
 				genAltNode(
 					newSymbolNodeWithPos(byte('-'), symPos(1)),
@@ -597,9 +601,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[^-z]",
-			},
+			pattern: "[^-z]",
 			ast: newConcatNode(
 				genAltNode(
 					newRangeSymbolNodeWithPos(bounds1[1][0].min, byte(44), symPos(1)),
@@ -654,18 +656,14 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"[-]",
-			},
+			pattern: "[-]",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('-'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"[^-]",
-			},
+			pattern: "[^-]",
 			ast: newConcatNode(
 				genAltNode(
 					newRangeSymbolNodeWithPos(bounds1[1][0].min, byte(44), symPos(1)),
@@ -717,57 +715,73 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"(a)",
-			},
+			pattern: "(a)",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"(((a)))",
-			},
+			pattern: "(((a)))",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
 				newEndMarkerNodeWithPos(1, endPos(2)),
 			),
 		},
 		{
-			patterns: []string{
-				"a()",
-			},
-			syntaxError: true,
+			pattern:     "a()",
+			syntaxError: synErrGroupNoElem,
 		},
 		{
-			patterns: []string{
-				"()a",
-			},
-			syntaxError: true,
+			pattern:     "()a",
+			syntaxError: synErrGroupNoElem,
 		},
 		{
-			patterns: []string{
-				"()",
-			},
-			syntaxError: true,
+			pattern:     "()",
+			syntaxError: synErrGroupNoElem,
 		},
 		{
-			patterns: []string{
-				"(",
-			},
-			syntaxError: true,
+			pattern:     "(",
+			syntaxError: synErrGroupUnclosed,
 		},
 		{
-			patterns: []string{
-				")",
-			},
-			syntaxError: true,
+			pattern:     "a(",
+			syntaxError: synErrGroupUnclosed,
 		},
 		{
-			patterns: []string{
-				"Mulder|Scully",
-			},
+			pattern:     "(a",
+			syntaxError: synErrGroupUnclosed,
+		},
+		{
+			pattern:     "((",
+			syntaxError: synErrGroupUnclosed,
+		},
+		{
+			pattern:     "((a)",
+			syntaxError: synErrGroupUnclosed,
+		},
+		{
+			pattern:     ")",
+			syntaxError: synErrGroupNoInitiator,
+		},
+		{
+			pattern:     "a)",
+			syntaxError: synErrGroupNoInitiator,
+		},
+		{
+			pattern:     ")a",
+			syntaxError: synErrGroupNoInitiator,
+		},
+		{
+			pattern:     "))",
+			syntaxError: synErrGroupNoInitiator,
+		},
+		{
+			pattern:     "(a))",
+			syntaxError: synErrGroupNoInitiator,
+		},
+		{
+			pattern: "Mulder|Scully",
 			ast: newConcatNode(
 				genAltNode(
 					genConcatNode(
@@ -791,9 +805,7 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"Langly|Frohike|Byers",
-			},
+			pattern: "Langly|Frohike|Byers",
 			ast: newConcatNode(
 				genAltNode(
 					genConcatNode(
@@ -825,169 +837,147 @@ func TestParse(t *testing.T) {
 			),
 		},
 		{
-			patterns: []string{
-				"|",
-			},
-			syntaxError: true,
+			pattern:     "|",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"||",
-			},
-			syntaxError: true,
+			pattern:     "||",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"Mulder|",
-			},
-			syntaxError: true,
+			pattern:     "Mulder|",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"|Scully",
-			},
-			syntaxError: true,
+			pattern:     "|Scully",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"Langly|Frohike|",
-			},
-			syntaxError: true,
+			pattern:     "Langly|Frohike|",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"Langly||Byers",
-			},
-			syntaxError: true,
+			pattern:     "Langly||Byers",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"|Frohike|Byers",
-			},
-			syntaxError: true,
+			pattern:     "|Frohike|Byers",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"|Frohike|",
-			},
-			syntaxError: true,
+			pattern:     "|Frohike|",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"Fox(|)Mulder",
-			},
-			syntaxError: true,
+			pattern:     "Fox(|)Mulder",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"(Fox|)Mulder",
-			},
-			syntaxError: true,
+			pattern:     "(Fox|)Mulder",
+			syntaxError: synErrAltLackOfOperand,
 		},
 		{
-			patterns: []string{
-				"Fox(|Mulder)",
-			},
-			syntaxError: true,
+			pattern:     "Fox(|Mulder)",
+			syntaxError: synErrAltLackOfOperand,
 		},
 	}
 	for i, tt := range tests {
-		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
-			ps := map[int][]byte{}
-			for i, p := range tt.patterns {
-				ps[i+1] = []byte(p)
-			}
-			root, _, err := parse(ps)
-			if tt.syntaxError {
-				// printAST(os.Stdout, root, "", "", false)
+		t.Run(fmt.Sprintf("#%v %v", i, tt.pattern), func(t *testing.T) {
+			p := newParser(1, symbolPositionMin, bytes.NewReader([]byte(tt.pattern)))
+			ast, err := p.parse()
+			if tt.syntaxError != nil {
+				// printAST(os.Stdout, ast, "", "", false)
 				if err == nil {
 					t.Fatalf("expected syntax error; got: nil")
 				}
-				if _, ok := err.(*SyntaxError); !ok {
-					t.Fatalf("expected syntax error; got: %v (type: %T)", err, err)
+				synErr, ok := err.(*SyntaxError)
+				if !ok {
+					t.Fatalf("expected SyntaxError; got: %v (type: %T)", err, err)
 				}
-				if root != nil {
-					t.Fatalf("root is not nil")
+				if synErr != tt.syntaxError {
+					t.Fatalf("unexpected syntax error; want: %v, got: %v", tt.syntaxError, synErr)
+				}
+				if ast != nil {
+					t.Fatalf("ast is not nil")
 				}
 			} else {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if root == nil {
+				if ast == nil {
 					t.Fatal("AST is nil")
 				}
-				// printAST(os.Stdout, root, "", "", false)
-				testAST(t, tt.ast, root)
+				// printAST(os.Stdout, ast, "", "", false)
+				testAST(t, tt.ast, ast)
 			}
 		})
 	}
+}
 
-	// Test a FOLLOE table and a symbol table
+func TestParse(t *testing.T) {
+	root, symTab, err := parse(map[int][]byte{
+		1: []byte("(a|b)*abb"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root == nil {
+		t.Fatal("root of AST is nil")
+	}
+	printAST(os.Stdout, root, "", "", false)
+
 	{
-		root, symTab, err := parse(map[int][]byte{
-			1: []byte("(a|b)*abb"),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if root == nil {
-			t.Fatal("root of AST is nil")
-		}
-		printAST(os.Stdout, root, "", "", false)
-
-		{
-			expectedAST := genConcatNode(
-				newRepeatNode(
-					newAltNode(
-						newSymbolNodeWithPos(byte('a'), symPos(1)),
-						newSymbolNodeWithPos(byte('b'), symPos(2)),
-					),
+		expectedAST := genConcatNode(
+			newRepeatNode(
+				newAltNode(
+					newSymbolNodeWithPos(byte('a'), symPos(1)),
+					newSymbolNodeWithPos(byte('b'), symPos(2)),
 				),
-				newSymbolNodeWithPos(byte('a'), symPos(3)),
-				newSymbolNodeWithPos(byte('b'), symPos(4)),
-				newSymbolNodeWithPos(byte('b'), symPos(5)),
-				newEndMarkerNodeWithPos(1, endPos(6)),
-			)
-			testAST(t, expectedAST, root)
+			),
+			newSymbolNodeWithPos(byte('a'), symPos(3)),
+			newSymbolNodeWithPos(byte('b'), symPos(4)),
+			newSymbolNodeWithPos(byte('b'), symPos(5)),
+			newEndMarkerNodeWithPos(1, endPos(6)),
+		)
+		testAST(t, expectedAST, root)
+	}
+
+	{
+		followTab := genFollowTable(root)
+		if followTab == nil {
+			t.Fatal("follow table is nil")
+		}
+		expectedFollowTab := followTable{
+			1: newSymbolPositionSet().add(symPos(1)).add(symPos(2)).add(symPos(3)),
+			2: newSymbolPositionSet().add(symPos(1)).add(symPos(2)).add(symPos(3)),
+			3: newSymbolPositionSet().add(symPos(4)),
+			4: newSymbolPositionSet().add(symPos(5)),
+			5: newSymbolPositionSet().add(endPos(6)),
+		}
+		testFollowTable(t, expectedFollowTab, followTab)
+	}
+
+	{
+		entry := func(v byte) byteRange {
+			return byteRange{
+				from: v,
+				to:   v,
+			}
 		}
 
-		{
-			followTab := genFollowTable(root)
-			if followTab == nil {
-				t.Fatal("follow table is nil")
-			}
-			expectedFollowTab := followTable{
-				1: newSymbolPositionSet().add(symPos(1)).add(symPos(2)).add(symPos(3)),
-				2: newSymbolPositionSet().add(symPos(1)).add(symPos(2)).add(symPos(3)),
-				3: newSymbolPositionSet().add(symPos(4)),
-				4: newSymbolPositionSet().add(symPos(5)),
-				5: newSymbolPositionSet().add(endPos(6)),
-			}
-			testFollowTable(t, expectedFollowTab, followTab)
+		expectedSymTab := &symbolTable{
+			symPos2Byte: map[symbolPosition]byteRange{
+				symPos(1): entry(byte('a')),
+				symPos(2): entry(byte('b')),
+				symPos(3): entry(byte('a')),
+				symPos(4): entry(byte('b')),
+				symPos(5): entry(byte('b')),
+			},
+			endPos2ID: map[symbolPosition]int{
+				endPos(6): 1,
+			},
 		}
-
-		{
-			entry := func(v byte) byteRange {
-				return byteRange{
-					from: v,
-					to:   v,
-				}
-			}
-
-			expectedSymTab := &symbolTable{
-				symPos2Byte: map[symbolPosition]byteRange{
-					symPos(1): entry(byte('a')),
-					symPos(2): entry(byte('b')),
-					symPos(3): entry(byte('a')),
-					symPos(4): entry(byte('b')),
-					symPos(5): entry(byte('b')),
-				},
-				endPos2ID: map[symbolPosition]int{
-					endPos(6): 1,
-				},
-			}
-			testSymbolTable(t, expectedSymTab, symTab)
-		}
+		testSymbolTable(t, expectedSymTab, symTab)
 	}
 }
 
