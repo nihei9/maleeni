@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -26,6 +27,11 @@ type compilerConfig struct {
 }
 
 func Compile(lexspec *spec.LexSpec, opts ...compilerOption) (*spec.CompiledLexSpec, error) {
+	err := lexspec.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid lexical specification:\n%w", err)
+	}
+
 	config := &compilerConfig{
 		logger: log.NewNopLogger(),
 	}
@@ -36,10 +42,10 @@ func Compile(lexspec *spec.LexSpec, opts ...compilerOption) (*spec.CompiledLexSp
 		}
 	}
 
-	var kinds []string
+	var kinds []spec.LexKind
 	var patterns map[int][]byte
 	{
-		kinds = append(kinds, "")
+		kinds = append(kinds, spec.LexKindNil)
 		patterns = map[int][]byte{}
 		for i, e := range lexspec.Entries {
 			kinds = append(kinds, e.Kind)

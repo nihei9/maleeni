@@ -10,6 +10,13 @@ import (
 	"github.com/nihei9/maleeni/spec"
 )
 
+func newLexEntry(kind string, pattern string) *spec.LexEntry {
+	return &spec.LexEntry{
+		Kind:    spec.LexKind(kind),
+		Pattern: spec.LexPattern(pattern),
+	}
+}
+
 func TestLexer_Next(t *testing.T) {
 	test := []struct {
 		lspec  *spec.LexSpec
@@ -19,8 +26,8 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("t1", "(a|b)*abb"),
-					spec.NewLexEntry("t2", " +"),
+					newLexEntry("t1", "(a|b)*abb"),
+					newLexEntry("t2", " +"),
 				},
 			},
 			src: "abb aabb aaabb babb bbabb abbbabb",
@@ -42,9 +49,9 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("t1", "b?a+"),
-					spec.NewLexEntry("t2", "(ab)?(cd)+"),
-					spec.NewLexEntry("t3", " +"),
+					newLexEntry("t1", "b?a+"),
+					newLexEntry("t2", "(ab)?(cd)+"),
+					newLexEntry("t3", " +"),
 				},
 			},
 			src: "ba baaa a aaa abcd abcdcdcd cd cdcdcd",
@@ -70,7 +77,7 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("t1", "."),
+					newLexEntry("t1", "."),
 				},
 			},
 			src: string([]byte{
@@ -114,7 +121,7 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("t1", "[ab.*+?|()[\\]]"),
+					newLexEntry("t1", "[ab.*+?|()[\\]]"),
 				},
 			},
 			src: "ab.*+?|()[]",
@@ -142,7 +149,7 @@ func TestLexer_Next(t *testing.T) {
 					// maleeni cannot handle the null character in patterns because compiler.lexer,
 					// specifically read() and restore(), recognizes the null characters as that a symbol doesn't exist.
 					// There is room for improvement in this behavior of the lexer.
-					spec.NewLexEntry("1ByteChar", "[\x01-\x7f]"),
+					newLexEntry("1ByteChar", "[\x01-\x7f]"),
 				},
 			},
 			src: string([]byte{
@@ -163,7 +170,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 2 byte characters
-					spec.NewLexEntry("2ByteChar", "[\xc2\x80-\xdf\xbf]"),
+					newLexEntry("2ByteChar", "[\xc2\x80-\xdf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -184,7 +191,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
-					spec.NewLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\x80]"),
+					newLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\x80]"),
 				},
 			},
 			src: string([]byte{
@@ -199,7 +206,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first two bytes are the same.
-					spec.NewLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\xbf]"),
+					newLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -220,7 +227,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
-					spec.NewLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xbf\xbf]"),
+					newLexEntry("3ByteChar", "[\xe0\xa0\x80-\xe0\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -241,7 +248,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 3 byte characters
-					spec.NewLexEntry("3ByteChar", "[\xe0\xa0\x80-\xef\xbf\xbf]"),
+					newLexEntry("3ByteChar", "[\xe0\xa0\x80-\xef\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -286,7 +293,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
-					spec.NewLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\x80]"),
+					newLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\x80]"),
 				},
 			},
 			src: string([]byte{
@@ -301,7 +308,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first 3 bytes are the same.
-					spec.NewLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\xbf]"),
+					newLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -322,7 +329,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first 2 bytes are the same.
-					spec.NewLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\xbf\xbf]"),
+					newLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -343,7 +350,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
-					spec.NewLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\xbf\xbf\xbf]"),
+					newLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf0\xbf\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -364,7 +371,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 4 byte characters
-					spec.NewLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf4\x8f\xbf\xbf]"),
+					newLexEntry("4ByteChar", "[\xf0\x90\x80\x80-\xf4\x8f\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -400,7 +407,7 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					spec.NewLexEntry("NonNumber", "[^0-9]+[0-9]"),
+					newLexEntry("NonNumber", "[^0-9]+[0-9]"),
 				},
 			},
 			src: "foo9",
@@ -439,8 +446,8 @@ func TestLexer_Next(t *testing.T) {
 func TestLexer_PeekN(t *testing.T) {
 	clspec, err := compiler.Compile(&spec.LexSpec{
 		Entries: []*spec.LexEntry{
-			spec.NewLexEntry("", "foo"),
-			spec.NewLexEntry("", "bar"),
+			newLexEntry("t1", "foo"),
+			newLexEntry("t2", "bar"),
 		},
 	})
 	if err != nil {
@@ -452,17 +459,9 @@ func TestLexer_PeekN(t *testing.T) {
 	}
 
 	expectedTokens := []*Token{
-		{
-			ID:    1,
-			Match: newByteSequence([]byte("foo")),
-		},
-		{
-			ID:    2,
-			Match: newByteSequence([]byte("bar")),
-		},
-		{
-			EOF: true,
-		},
+		newToken(1, "t1", []byte("foo")),
+		newToken(2, "t2", []byte("bar")),
+		newEOFToken(),
 	}
 
 	tok, err := lex.Peek1()

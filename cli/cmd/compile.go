@@ -25,23 +25,16 @@ func init() {
 }
 
 func runCompile(cmd *cobra.Command, args []string) (retErr error) {
-	var lspec *spec.LexSpec
-	{
-		data, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return err
-		}
-		lspec = &spec.LexSpec{}
-		err = json.Unmarshal(data, lspec)
-		if err != nil {
-			return err
-		}
+	lspec, err := readLexSpec()
+	if err != nil {
+		return fmt.Errorf("Cannot read a lexical specification: %w", err)
 	}
 	var w io.Writer
 	{
-		f, err := os.OpenFile("maleeni-compile.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		fileName := "maleeni-compile.log"
+		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
-			return err
+			return fmt.Errorf("Cannot open the log file %s: %w", fileName, err)
 		}
 		defer f.Close()
 		w = f
@@ -62,11 +55,32 @@ Date time: %v
 	if err != nil {
 		return err
 	}
+	err = writeCompiledLexSpec(clspec)
+	if err != nil {
+		return fmt.Errorf("Cannot write a compiled lexical specification: %w", err)
+	}
+
+	return nil
+}
+
+func readLexSpec() (*spec.LexSpec, error) {
+	data, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return nil, err
+	}
+	lspec := &spec.LexSpec{}
+	err = json.Unmarshal(data, lspec)
+	if err != nil {
+		return nil, err
+	}
+	return lspec, nil
+}
+
+func writeCompiledLexSpec(clspec *spec.CompiledLexSpec) error {
 	out, err := json.Marshal(clspec)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stdout, "%v\n", string(out))
-
 	return nil
 }

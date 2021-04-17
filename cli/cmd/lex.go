@@ -27,28 +27,16 @@ As use ` + "`maleeni compile`" + `, you can generate the specification.`,
 }
 
 func runLex(cmd *cobra.Command, args []string) (retErr error) {
-	var clspec *spec.CompiledLexSpec
-	{
-		clspecPath := args[0]
-		f, err := os.Open(clspecPath)
-		if err != nil {
-			return err
-		}
-		data, err := ioutil.ReadAll(f)
-		if err != nil {
-			return err
-		}
-		clspec = &spec.CompiledLexSpec{}
-		err = json.Unmarshal(data, clspec)
-		if err != nil {
-			return err
-		}
+	clspec, err := readCompiledLexSpec(args[0])
+	if err != nil {
+		return fmt.Errorf("Cannot read a compiled lexical specification: %w", err)
 	}
 	var w io.Writer
 	{
-		f, err := os.OpenFile("maleeni-lex.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		fileName := "maleeni-lex.log"
+		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
-			return err
+			return fmt.Errorf("Cannot open the log file %s: %w", fileName, err)
 		}
 		defer f.Close()
 		w = f
@@ -76,7 +64,7 @@ Date time: %v
 		}
 		data, err := json.Marshal(tok)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal a token; token: %v, error: %v\n", tok, err)
+			return fmt.Errorf("failed to marshal a token; token: %v, error: %v\n", tok, err)
 		}
 		fmt.Fprintf(os.Stdout, "%v\n", string(data))
 		if tok.EOF {
@@ -85,4 +73,21 @@ Date time: %v
 	}
 
 	return nil
+}
+
+func readCompiledLexSpec(path string) (*spec.CompiledLexSpec, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	clspec := &spec.CompiledLexSpec{}
+	err = json.Unmarshal(data, clspec)
+	if err != nil {
+		return nil, err
+	}
+	return clspec, nil
 }

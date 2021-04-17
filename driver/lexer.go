@@ -245,7 +245,7 @@ func (l *lexer) next() (*Token, error) {
 		state = nextState
 		id, ok := l.clspec.DFA.AcceptingStates[state]
 		if ok {
-			tok = newToken(id, l.clspec.Kinds[id], newByteSequence(buf))
+			tok = newToken(id, l.clspec.Kinds[id].String(), newByteSequence(buf))
 			unfixedBufLen = 0
 		}
 	}
