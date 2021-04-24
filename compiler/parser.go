@@ -2,6 +2,8 @@ package compiler
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -307,6 +309,9 @@ func (p *parser) parseSingleChar() astNode {
 		p.expect(tokenKindBExpClose)
 		return inverse
 	}
+	if p.consume(tokenKindCodePointLeader) {
+		return p.parseCodePoint()
+	}
 	c := p.parseNormalChar()
 	if c == nil {
 		if p.consume(tokenKindBExpClose) {
@@ -318,6 +323,9 @@ func (p *parser) parseSingleChar() astNode {
 }
 
 func (p *parser) parseBExpElem() astNode {
+	if p.consume(tokenKindCodePointLeader) {
+		return p.parseCodePoint()
+	}
 	left := p.parseNormalChar()
 	if left == nil {
 		return nil
@@ -336,6 +344,53 @@ func (p *parser) parseBExpElem() astNode {
 		raiseSyntaxError(synErrRangeInvalidOrder)
 	}
 	return genRangeAST(left, right)
+}
+
+func (p *parser) parseCodePoint() astNode {
+	if !p.consume(tokenKindLBrace) {
+		raiseSyntaxError(synErrCPExpInvalidForm)
+	}
+	if !p.consume(tokenKindCodePoint) {
+		raiseSyntaxError(synErrCPExpInvalidForm)
+	}
+
+	var cp []byte
+	{
+		// Although hex.DecodeString method can handle only a hex string that has even length,
+		// `codePoint` always has even length by the lexical specification.
+		b, err := hex.DecodeString(p.lastTok.codePoint)
+		if err != nil {
+			panic(fmt.Errorf("failed to decode a code point (%v) into a byte slice: %v", p.lastTok.codePoint, err))
+		}
+		// `b` must be 4 bytes to convert it into a 32-bit integer.
+		l := len(b)
+		for i := 0; i < 4-l; i++ {
+			b = append([]byte{0}, b...)
+		}
+		n := binary.BigEndian.Uint32(b)
+		if n < 0x0000 || n > 0x10FFFF {
+			raiseSyntaxError(synErrCPExpOutOfRange)
+		}
+
+		cp = []byte(string(rune(n)))
+	}
+
+	var concat astNode
+	{
+		concat = newSymbolNode(cp[0])
+		for _, b := range cp[1:] {
+			concat = genConcatNode(
+				concat,
+				newSymbolNode(b),
+			)
+		}
+	}
+
+	if !p.consume(tokenKindRBrace) {
+		raiseSyntaxError(synErrCPExpInvalidForm)
+	}
+
+	return concat
 }
 
 func (p *parser) parseNormalChar() astNode {

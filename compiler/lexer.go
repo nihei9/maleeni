@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type tokenKind string
@@ -21,12 +22,17 @@ const (
 	tokenKindInverseBExpOpen = tokenKind("[^")
 	tokenKindBExpClose       = tokenKind("]")
 	tokenKindCharRange       = tokenKind("-")
+	tokenKindCodePointLeader = tokenKind("\\u")
+	tokenKindLBrace          = tokenKind("{")
+	tokenKindRBrace          = tokenKind("}")
+	tokenKindCodePoint       = tokenKind("code point")
 	tokenKindEOF             = tokenKind("eof")
 )
 
 type token struct {
-	kind tokenKind
-	char rune
+	kind      tokenKind
+	char      rune
+	codePoint string
 }
 
 const nullChar = '\u0000'
@@ -38,12 +44,44 @@ func newToken(kind tokenKind, char rune) *token {
 	}
 }
 
+func newCodePointToken(codePoint string) *token {
+	return &token{
+		kind:      tokenKindCodePoint,
+		codePoint: codePoint,
+	}
+}
+
 type lexerMode string
 
 const (
 	lexerModeDefault = lexerMode("default")
 	lexerModeBExp    = lexerMode("bracket expression")
+	lexerModeCPExp   = lexerMode("code point expression")
 )
+
+type lexerModeStack struct {
+	stack []lexerMode
+}
+
+func newLexerModeStack() *lexerModeStack {
+	return &lexerModeStack{
+		stack: []lexerMode{
+			lexerModeDefault,
+		},
+	}
+}
+
+func (s *lexerModeStack) top() lexerMode {
+	return s.stack[len(s.stack)-1]
+}
+
+func (s *lexerModeStack) push(m lexerMode) {
+	s.stack = append(s.stack, m)
+}
+
+func (s *lexerModeStack) pop() {
+	s.stack = s.stack[:len(s.stack)-1]
+}
 
 type rangeState string
 
@@ -71,7 +109,7 @@ type lexer struct {
 	prevEOF1      bool
 	prevChar2     rune
 	pervEOF2      bool
-	mode          lexerMode
+	modeStack     *lexerModeStack
 	rangeState    rangeState
 	errMsgDetails string
 }
@@ -89,7 +127,7 @@ func newLexer(src io.Reader) *lexer {
 		prevEOF1:   false,
 		prevChar2:  nullChar,
 		pervEOF2:   false,
-		mode:       lexerModeDefault,
+		modeStack:  newLexerModeStack(),
 		rangeState: rangeStateReady,
 	}
 }
@@ -103,7 +141,7 @@ func (l *lexer) next() (*token, error) {
 		return newToken(tokenKindEOF, nullChar), nil
 	}
 
-	switch l.mode {
+	switch l.modeStack.top() {
 	case lexerModeBExp:
 		tok, err := l.nextInBExp(c)
 		if err != nil {
@@ -111,7 +149,7 @@ func (l *lexer) next() (*token, error) {
 		}
 		switch tok.kind {
 		case tokenKindBExpClose:
-			l.mode = lexerModeDefault
+			l.modeStack.pop()
 		case tokenKindCharRange:
 			l.rangeState = rangeStateExpectRangeTerminator
 		case tokenKindChar:
@@ -121,6 +159,18 @@ func (l *lexer) next() (*token, error) {
 			case rangeStateExpectRangeTerminator:
 				l.rangeState = rangeStateReady
 			}
+		case tokenKindCodePointLeader:
+			l.modeStack.push(lexerModeCPExp)
+		}
+		return tok, nil
+	case lexerModeCPExp:
+		tok, err := l.nextInCodePoint(c)
+		if err != nil {
+			return nil, err
+		}
+		switch tok.kind {
+		case tokenKindRBrace:
+			l.modeStack.pop()
 		}
 		return tok, nil
 	default:
@@ -130,11 +180,13 @@ func (l *lexer) next() (*token, error) {
 		}
 		switch tok.kind {
 		case tokenKindBExpOpen:
-			l.mode = lexerModeBExp
+			l.modeStack.push(lexerModeBExp)
 			l.rangeState = rangeStateReady
 		case tokenKindInverseBExpOpen:
-			l.mode = lexerModeBExp
+			l.modeStack.push(lexerModeBExp)
 			l.rangeState = rangeStateReady
+		case tokenKindCodePointLeader:
+			l.modeStack.push(lexerModeCPExp)
 		}
 		return tok, nil
 	}
@@ -210,6 +262,9 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 		if eof {
 			return nil, synErrIncompletedEscSeq
 		}
+		if c == 'u' {
+			return newToken(tokenKindCodePointLeader, nullChar), nil
+		}
 		if c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']' {
 			return newToken(tokenKindChar, c), nil
 		}
@@ -259,6 +314,9 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 		if eof {
 			return nil, synErrIncompletedEscSeq
 		}
+		if c == 'u' {
+			return newToken(tokenKindCodePointLeader, nullChar), nil
+		}
 		if c == '\\' || c == '^' || c == '-' || c == ']' {
 			return newToken(tokenKindChar, c), nil
 		}
@@ -267,6 +325,60 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 	default:
 		return newToken(tokenKindChar, c), nil
 	}
+}
+
+func (l *lexer) nextInCodePoint(c rune) (*token, error) {
+	switch c {
+	case '{':
+		return newToken(tokenKindLBrace, nullChar), nil
+	case '}':
+		return newToken(tokenKindRBrace, nullChar), nil
+	default:
+		if !isHexDigit(c) {
+			return nil, synErrInvalidCodePoint
+		}
+		var b strings.Builder
+		fmt.Fprint(&b, string(c))
+		n := 1
+		for {
+			c, eof, err := l.read()
+			if err != nil {
+				return nil, err
+			}
+			if eof {
+				l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			if c == '}' {
+				err := l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			if !isHexDigit(c) || n >= 6 {
+				return nil, synErrInvalidCodePoint
+			}
+			fmt.Fprint(&b, string(c))
+			n++
+		}
+		cp := b.String()
+		cpLen := len(cp)
+		if !(cpLen == 4 || cpLen == 6) {
+			return nil, synErrInvalidCodePoint
+		}
+		return newCodePointToken(b.String()), nil
+	}
+}
+
+func isHexDigit(c rune) bool {
+	if c >= '0' && c <= '9' || c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' {
+		return true
+	}
+	return false
 }
 
 func (l *lexer) read() (rune, bool, error) {

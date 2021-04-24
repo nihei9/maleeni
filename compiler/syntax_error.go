@@ -20,6 +20,7 @@ var (
 	// lexical errors
 	synErrIncompletedEscSeq = newSyntaxError("incompleted escape sequence; unexpected EOF following \\")
 	synErrInvalidEscSeq     = newSyntaxError("invalid escape sequence")
+	synErrInvalidCodePoint  = newSyntaxError("code points must consist of just 4 or 6 hex digits")
 
 	// syntax errors
 	synErrUnexpectedToken   = newSyntaxError("unexpected token")
@@ -34,4 +35,6 @@ var (
 	synErrBExpUnclosed      = newSyntaxError("unclosed bracket expression")
 	synErrBExpInvalidForm   = newSyntaxError("invalid bracket expression")
 	synErrRangeInvalidOrder = newSyntaxError("a range expression with invalid order")
+	synErrCPExpInvalidForm  = newSyntaxError("invalid code point expression")
+	synErrCPExpOutOfRange   = newSyntaxError("a code point must be between U+0000 to U+10FFFF")
 )

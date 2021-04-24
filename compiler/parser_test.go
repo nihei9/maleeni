@@ -71,6 +71,19 @@ func TestParser_parse(t *testing.T) {
 			),
 		},
 		{
+			pattern: "\\u{3042}?",
+			ast: genConcatNode(
+				newOptionNode(
+					genConcatNode(
+						newSymbolNodeWithPos(0xE3, symPos(1)),
+						newSymbolNodeWithPos(0x81, symPos(2)),
+						newSymbolNodeWithPos(0x82, symPos(3)),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
 			pattern: "(a)?",
 			ast: genConcatNode(
 				newOptionNode(
@@ -160,6 +173,19 @@ func TestParser_parse(t *testing.T) {
 			),
 		},
 		{
+			pattern: "\\u{3042}*",
+			ast: genConcatNode(
+				newRepeatNode(
+					genConcatNode(
+						newSymbolNodeWithPos(0xE3, symPos(1)),
+						newSymbolNodeWithPos(0x81, symPos(2)),
+						newSymbolNodeWithPos(0x82, symPos(3)),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
 			pattern: "((a*)*)*",
 			ast: genConcatNode(
 				newRepeatNode(
@@ -240,6 +266,24 @@ func TestParser_parse(t *testing.T) {
 						newSymbolNodeWithPos(byte('a'), symPos(4)),
 						newSymbolNodeWithPos(byte('b'), symPos(5)),
 						newSymbolNodeWithPos(byte('c'), symPos(6)),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(7)),
+			),
+		},
+		{
+			pattern: "\\u{3042}+",
+			ast: genConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(0xE3, symPos(1)),
+					newSymbolNodeWithPos(0x81, symPos(2)),
+					newSymbolNodeWithPos(0x82, symPos(3)),
+				),
+				newRepeatNode(
+					genConcatNode(
+						newSymbolNodeWithPos(0xE3, symPos(4)),
+						newSymbolNodeWithPos(0x81, symPos(5)),
+						newSymbolNodeWithPos(0x82, symPos(6)),
 					),
 				),
 				newEndMarkerNodeWithPos(1, endPos(7)),
@@ -715,6 +759,85 @@ func TestParser_parse(t *testing.T) {
 			),
 		},
 		{
+			pattern: "\\u{006E}",
+			ast: genConcatNode(
+				newSymbolNodeWithPos(0x6E, symPos(1)),
+				newEndMarkerNodeWithPos(1, endPos(2)),
+			),
+		},
+		{
+			pattern: "\\u{03BD}",
+			ast: genConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(0xCE, symPos(1)),
+					newSymbolNodeWithPos(0xBD, symPos(2)),
+				),
+				newEndMarkerNodeWithPos(1, endPos(3)),
+			),
+		},
+		{
+			pattern: "\\u{306B}",
+			ast: genConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(0xE3, symPos(1)),
+					newSymbolNodeWithPos(0x81, symPos(2)),
+					newSymbolNodeWithPos(0xAB, symPos(3)),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
+			pattern: "\\u{01F638}",
+			ast: genConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(0xF0, symPos(1)),
+					newSymbolNodeWithPos(0x9F, symPos(2)),
+					newSymbolNodeWithPos(0x98, symPos(3)),
+					newSymbolNodeWithPos(0xB8, symPos(4)),
+				),
+				newEndMarkerNodeWithPos(1, endPos(5)),
+			),
+		},
+		{
+			pattern: "\\u{0000}",
+			ast: genConcatNode(
+				newSymbolNodeWithPos(0x00, symPos(1)),
+				newEndMarkerNodeWithPos(1, endPos(2)),
+			),
+		},
+		{
+			pattern: "\\u{10FFFF}",
+			ast: genConcatNode(
+				genConcatNode(
+					newSymbolNodeWithPos(0xF4, symPos(1)),
+					newSymbolNodeWithPos(0x8F, symPos(2)),
+					newSymbolNodeWithPos(0xBF, symPos(3)),
+					newSymbolNodeWithPos(0xBF, symPos(4)),
+				),
+				newEndMarkerNodeWithPos(1, endPos(5)),
+			),
+		},
+		{
+			pattern:     "\\u{110000}",
+			syntaxError: synErrCPExpOutOfRange,
+		},
+		{
+			pattern:     "\\u",
+			syntaxError: synErrCPExpInvalidForm,
+		},
+		{
+			pattern:     "\\u{",
+			syntaxError: synErrCPExpInvalidForm,
+		},
+		{
+			pattern:     "\\u{03BD",
+			syntaxError: synErrCPExpInvalidForm,
+		},
+		{
+			pattern:     "\\u{}",
+			syntaxError: synErrCPExpInvalidForm,
+		},
+		{
 			pattern: "(a)",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -997,8 +1120,8 @@ func testAST(t *testing.T, expected, actual astNode) {
 	switch e := expected.(type) {
 	case *symbolNode:
 		a := actual.(*symbolNode)
-		if a.pos != e.pos {
-			t.Fatalf("symbol position is mismatched; want: %v, got: %v", e.pos, a.pos)
+		if a.pos != e.pos || a.from != e.from || a.to != e.to {
+			t.Fatalf("unexpected node; want: %+v, got: %+v", e, a)
 		}
 	case *endMarkerNode:
 		a := actual.(*endMarkerNode)

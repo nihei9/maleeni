@@ -30,7 +30,7 @@ func TestLexer(t *testing.T) {
 		},
 		{
 			caption: "lexer can recognize the special characters in default mode",
-			src:     ".*+?|()[",
+			src:     ".*+?|()[\\u",
 			tokens: []*token{
 				newToken(tokenKindAnyChar, nullChar),
 				newToken(tokenKindRepeat, nullChar),
@@ -40,6 +40,7 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindGroupOpen, nullChar),
 				newToken(tokenKindGroupClose, nullChar),
 				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
@@ -60,26 +61,36 @@ func TestLexer(t *testing.T) {
 			},
 		},
 		{
-			caption: "] is treated as an ordinary character in default mode",
-			src:     "]",
+			caption: "], {, and } are treated as an ordinary character in default mode",
+			src:     "]{}",
 			tokens: []*token{
 				newToken(tokenKindChar, ']'),
+				newToken(tokenKindChar, '{'),
+				newToken(tokenKindChar, '}'),
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
 		{
 			caption: "lexer can recognize the special characters in bracket expression mode",
-			src:     "[a-z][^a-z]",
+			src:     "[a-z\\u{09AF}][^a-z\\u{09abcf}]",
 			tokens: []*token{
 				newToken(tokenKindBExpOpen, nullChar),
 				newToken(tokenKindChar, 'a'),
 				newToken(tokenKindCharRange, nullChar),
 				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("09AF"),
+				newToken(tokenKindRBrace, nullChar),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindInverseBExpOpen, nullChar),
 				newToken(tokenKindChar, 'a'),
 				newToken(tokenKindCharRange, nullChar),
 				newToken(tokenKindChar, 'z'),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("09abcf"),
+				newToken(tokenKindRBrace, nullChar),
 				newToken(tokenKindBExpClose, nullChar),
 				newToken(tokenKindEOF, nullChar),
 			},
@@ -233,6 +244,163 @@ func TestLexer(t *testing.T) {
 			},
 			err: synErrIncompletedEscSeq,
 		},
+		{
+			caption: "lexer can recognize the special characters and code points in code point expression mode",
+			src:     "\\u{0123}\\u{4567}\\u{89abcd}\\u{efAB}\\u{CDEF01}[\\u{0123}\\u{4567}\\u{89abcd}\\u{efAB}\\u{CDEF01}][^\\u{0123}\\u{4567}\\u{89abcd}\\u{efAB}\\u{CDEF01}]",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("0123"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("4567"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("89abcd"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("efAB"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("CDEF01"),
+				newToken(tokenKindRBrace, nullChar),
+
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("0123"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("4567"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("89abcd"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("efAB"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("CDEF01"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindBExpClose, nullChar),
+
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("0123"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("4567"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("89abcd"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("efAB"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("CDEF01"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindBExpClose, nullChar),
+
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "a one digit hex string isn't a valid code point",
+			src:     "\\u{0",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a two digits hex string isn't a valid code point",
+			src:     "\\u{01",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a three digits hex string isn't a valid code point",
+			src:     "\\u{012",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a four digits hex string is a valid code point",
+			src:     "\\u{0123}",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("0123"),
+				newToken(tokenKindRBrace, nullChar),
+			},
+		},
+		{
+			caption: "a five digits hex string isn't a valid code point",
+			src:     "\\u{01234",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a six digits hex string is a valid code point",
+			src:     "\\u{012345}",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCodePointToken("012345"),
+				newToken(tokenKindRBrace, nullChar),
+			},
+		},
+		{
+			caption: "a seven digits hex string isn't a valid code point",
+			src:     "\\u{0123456",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a code point must be hex digits",
+			src:     "\\u{g",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
+		{
+			caption: "a code point must be hex digits",
+			src:     "\\u{G",
+			tokens: []*token{
+				newToken(tokenKindCodePointLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+			},
+			err: synErrInvalidCodePoint,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -268,7 +436,7 @@ func TestLexer(t *testing.T) {
 
 func testToken(t *testing.T, a, e *token) {
 	t.Helper()
-	if e.kind != a.kind || e.char != a.char {
-		t.Fatalf("unexpected token; want: %v, got: %v", e, a)
+	if e.kind != a.kind || e.char != a.char || e.codePoint != a.codePoint {
+		t.Fatalf("unexpected token; want: %+v, got: %+v", e, a)
 	}
 }

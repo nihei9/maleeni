@@ -143,12 +143,12 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					// all 1 byte characters
+					// all 1 byte characters except null character (U+0000)
 					//
 					// NOTE:
 					// maleeni cannot handle the null character in patterns because compiler.lexer,
 					// specifically read() and restore(), recognizes the null characters as that a symbol doesn't exist.
-					// There is room for improvement in this behavior of the lexer.
+					// If a pattern needs a null character, use code point expression \u{0000}.
 					newLexEntry("1ByteChar", "[\x01-\x7f]"),
 				},
 			},
@@ -413,6 +413,39 @@ func TestLexer_Next(t *testing.T) {
 			src: "foo9",
 			tokens: []*Token{
 				newToken(1, "NonNumber", newByteSequence([]byte("foo9"))),
+				newEOFToken(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntry("1ByteChar", "\\u{006E}"),
+					newLexEntry("2ByteChar", "\\u{03BD}"),
+					newLexEntry("3ByteChar", "\\u{306B}"),
+					newLexEntry("4ByteChar", "\\u{01F638}"),
+				},
+			},
+			src: "nνに😸",
+			tokens: []*Token{
+				newToken(1, "1ByteChar", newByteSequence([]byte{0x6E})),
+				newToken(2, "2ByteChar", newByteSequence([]byte{0xCE, 0xBD})),
+				newToken(3, "3ByteChar", newByteSequence([]byte{0xE3, 0x81, 0xAB})),
+				newToken(4, "4ByteChar", newByteSequence([]byte{0xF0, 0x9F, 0x98, 0xB8})),
+				newEOFToken(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntry("codePointsAlt", "[\\u{006E}\\u{03BD}\\u{306B}\\u{01F638}]"),
+				},
+			},
+			src: "nνに😸",
+			tokens: []*Token{
+				newToken(1, "codePointsAlt", newByteSequence([]byte{0x6E})),
+				newToken(1, "codePointsAlt", newByteSequence([]byte{0xCE, 0xBD})),
+				newToken(1, "codePointsAlt", newByteSequence([]byte{0xE3, 0x81, 0xAB})),
+				newToken(1, "codePointsAlt", newByteSequence([]byte{0xF0, 0x9F, 0x98, 0xB8})),
 				newEOFToken(),
 			},
 		},
