@@ -401,6 +401,50 @@ func TestLexer(t *testing.T) {
 			},
 			err: synErrInvalidCodePoint,
 		},
+		{
+			caption: "lexer can recognize the special characters and symbols in character property expression mode",
+			src:     "\\p{Letter}\\p{General_Category=Letter}[\\p{Letter}\\p{General_Category=Letter}][^\\p{Letter}\\p{General_Category=Letter}]",
+			tokens: []*token{
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("General_Category"),
+				newToken(tokenKindEqual, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+
+				newToken(tokenKindBExpOpen, nullChar),
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("General_Category"),
+				newToken(tokenKindEqual, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindBExpClose, nullChar),
+
+				newToken(tokenKindInverseBExpOpen, nullChar),
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindCharPropLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newCharPropSymbolToken("General_Category"),
+				newToken(tokenKindEqual, nullChar),
+				newCharPropSymbolToken("Letter"),
+				newToken(tokenKindRBrace, nullChar),
+				newToken(tokenKindBExpClose, nullChar),
+
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {
@@ -425,7 +469,7 @@ func TestLexer(t *testing.T) {
 				}
 			}
 			if err != tt.err {
-				t.Fatalf("unexpected error; want: %v, got: %v", tt.err, err)
+				t.Fatalf("unexpected error; want: %v, got: %v (%v)", tt.err, err, lex.errMsgDetails)
 			}
 			if i < len(tt.tokens) {
 				t.Fatalf("expecte more tokens")

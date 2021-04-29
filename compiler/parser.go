@@ -312,6 +312,9 @@ func (p *parser) parseSingleChar() astNode {
 	if p.consume(tokenKindCodePointLeader) {
 		return p.parseCodePoint()
 	}
+	if p.consume(tokenKindCharPropLeader) {
+		return p.parseCharProp()
+	}
 	c := p.parseNormalChar()
 	if c == nil {
 		if p.consume(tokenKindBExpClose) {
@@ -393,12 +396,62 @@ func (p *parser) parseCodePoint() astNode {
 	return concat
 }
 
+func (p *parser) parseCharProp() astNode {
+	if !p.consume(tokenKindLBrace) {
+		raiseSyntaxError(synErrCharPropExpInvalidForm)
+	}
+	var sym1, sym2 string
+	if !p.consume(tokenKindCharPropSymbol) {
+		raiseSyntaxError(synErrCharPropExpInvalidForm)
+	}
+	sym1 = p.lastTok.propSymbol
+	if p.consume(tokenKindEqual) {
+		if !p.consume(tokenKindCharPropSymbol) {
+			raiseSyntaxError(synErrCharPropExpInvalidForm)
+		}
+		sym2 = p.lastTok.propSymbol
+	}
+
+	var propName, propVal string
+	if sym2 != "" {
+		propName = sym1
+		propVal = sym2
+	} else {
+		propName = "gc"
+		propVal = sym1
+	}
+	cpRanges, err := findCodePointRanges(propName, propVal)
+	if err != nil {
+		p.errMsgDetails = fmt.Sprintf("%v", err)
+		raiseSyntaxError(synErrCharPropUnsupported)
+	}
+
+	var alt astNode
+	for _, r := range cpRanges {
+		from := genNormalCharAST(r.From)
+		to := genNormalCharAST(r.To)
+		alt = genAltNode(
+			alt,
+			genRangeAST(from, to),
+		)
+	}
+
+	if !p.consume(tokenKindRBrace) {
+		raiseSyntaxError(synErrCharPropExpInvalidForm)
+	}
+
+	return alt
+}
+
 func (p *parser) parseNormalChar() astNode {
 	if !p.consume(tokenKindChar) {
 		return nil
 	}
+	return genNormalCharAST(p.lastTok.char)
+}
 
-	b := []byte(string(p.lastTok.char))
+func genNormalCharAST(c rune) astNode {
+	b := []byte(string(c))
 	switch len(b) {
 	case 1:
 		return newSymbolNode(b[0])

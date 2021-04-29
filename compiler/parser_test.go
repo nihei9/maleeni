@@ -29,6 +29,11 @@ func TestParser_parse(t *testing.T) {
 		pattern     string
 		ast         astNode
 		syntaxError *SyntaxError
+
+		// When an AST is large, as patterns containing a character property expression,
+		// this test only checks that the pattern is parsable.
+		// The check of the validity of such AST is performed by checking that it can be matched correctly using the driver.
+		skipTestAST bool
 	}{
 		{
 			pattern: "a",
@@ -82,6 +87,10 @@ func TestParser_parse(t *testing.T) {
 				),
 				newEndMarkerNodeWithPos(1, endPos(4)),
 			),
+		},
+		{
+			pattern:     "\\p{Letter}?",
+			skipTestAST: true,
 		},
 		{
 			pattern: "(a)?",
@@ -186,6 +195,10 @@ func TestParser_parse(t *testing.T) {
 			),
 		},
 		{
+			pattern:     "\\p{Letter}*",
+			skipTestAST: true,
+		},
+		{
 			pattern: "((a*)*)*",
 			ast: genConcatNode(
 				newRepeatNode(
@@ -288,6 +301,10 @@ func TestParser_parse(t *testing.T) {
 				),
 				newEndMarkerNodeWithPos(1, endPos(7)),
 			),
+		},
+		{
+			pattern:     "\\p{Letter}+",
+			skipTestAST: true,
 		},
 		{
 			pattern: "((a+)+)+",
@@ -838,6 +855,58 @@ func TestParser_parse(t *testing.T) {
 			syntaxError: synErrCPExpInvalidForm,
 		},
 		{
+			pattern:     "\\p{Letter}",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "\\p{General_Category=Letter}",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "\\p{ Letter }",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "\\p{ General_Category = Letter }",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "\\p",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{Letter",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{General_Category=}",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{General_Category=  }",
+			syntaxError: synErrCharPropInvalidSymbol,
+		},
+		{
+			pattern:     "\\p{=Letter}",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{  =Letter}",
+			syntaxError: synErrCharPropInvalidSymbol,
+		},
+		{
+			pattern:     "\\p{=}",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
+			pattern:     "\\p{}",
+			syntaxError: synErrCharPropExpInvalidForm,
+		},
+		{
 			pattern: "(a)",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -1031,7 +1100,9 @@ func TestParser_parse(t *testing.T) {
 					t.Fatal("AST is nil")
 				}
 				// printAST(os.Stdout, ast, "", "", false)
-				testAST(t, tt.ast, ast)
+				if !tt.skipTestAST {
+					testAST(t, tt.ast, ast)
+				}
 			}
 		})
 	}

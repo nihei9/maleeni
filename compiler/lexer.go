@@ -23,16 +23,20 @@ const (
 	tokenKindBExpClose       = tokenKind("]")
 	tokenKindCharRange       = tokenKind("-")
 	tokenKindCodePointLeader = tokenKind("\\u")
+	tokenKindCharPropLeader  = tokenKind("\\p")
 	tokenKindLBrace          = tokenKind("{")
 	tokenKindRBrace          = tokenKind("}")
+	tokenKindEqual           = tokenKind("=")
 	tokenKindCodePoint       = tokenKind("code point")
+	tokenKindCharPropSymbol  = tokenKind("character property symbol")
 	tokenKindEOF             = tokenKind("eof")
 )
 
 type token struct {
-	kind      tokenKind
-	char      rune
-	codePoint string
+	kind       tokenKind
+	char       rune
+	propSymbol string
+	codePoint  string
 }
 
 const nullChar = '\u0000'
@@ -51,12 +55,20 @@ func newCodePointToken(codePoint string) *token {
 	}
 }
 
+func newCharPropSymbolToken(propSymbol string) *token {
+	return &token{
+		kind:       tokenKindCharPropSymbol,
+		propSymbol: propSymbol,
+	}
+}
+
 type lexerMode string
 
 const (
-	lexerModeDefault = lexerMode("default")
-	lexerModeBExp    = lexerMode("bracket expression")
-	lexerModeCPExp   = lexerMode("code point expression")
+	lexerModeDefault     = lexerMode("default")
+	lexerModeBExp        = lexerMode("bracket expression")
+	lexerModeCPExp       = lexerMode("code point expression")
+	lexerModeCharPropExp = lexerMode("character property expression")
 )
 
 type lexerModeStack struct {
@@ -161,10 +173,22 @@ func (l *lexer) next() (*token, error) {
 			}
 		case tokenKindCodePointLeader:
 			l.modeStack.push(lexerModeCPExp)
+		case tokenKindCharPropLeader:
+			l.modeStack.push(lexerModeCharPropExp)
 		}
 		return tok, nil
 	case lexerModeCPExp:
 		tok, err := l.nextInCodePoint(c)
+		if err != nil {
+			return nil, err
+		}
+		switch tok.kind {
+		case tokenKindRBrace:
+			l.modeStack.pop()
+		}
+		return tok, nil
+	case lexerModeCharPropExp:
+		tok, err := l.nextInCharProp(c)
 		if err != nil {
 			return nil, err
 		}
@@ -187,6 +211,8 @@ func (l *lexer) next() (*token, error) {
 			l.rangeState = rangeStateReady
 		case tokenKindCodePointLeader:
 			l.modeStack.push(lexerModeCPExp)
+		case tokenKindCharPropLeader:
+			l.modeStack.push(lexerModeCharPropExp)
 		}
 		return tok, nil
 	}
@@ -265,6 +291,9 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 		if c == 'u' {
 			return newToken(tokenKindCodePointLeader, nullChar), nil
 		}
+		if c == 'p' {
+			return newToken(tokenKindCharPropLeader, nullChar), nil
+		}
 		if c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']' {
 			return newToken(tokenKindChar, c), nil
 		}
@@ -317,10 +346,13 @@ func (l *lexer) nextInBExp(c rune) (*token, error) {
 		if c == 'u' {
 			return newToken(tokenKindCodePointLeader, nullChar), nil
 		}
+		if c == 'p' {
+			return newToken(tokenKindCharPropLeader, nullChar), nil
+		}
 		if c == '\\' || c == '^' || c == '-' || c == ']' {
 			return newToken(tokenKindChar, c), nil
 		}
-		l.errMsgDetails = fmt.Sprintf("\\%v is not supported", string(c))
+		l.errMsgDetails = fmt.Sprintf("\\%v is not supported in a bracket expression", string(c))
 		return nil, synErrInvalidEscSeq
 	default:
 		return newToken(tokenKindChar, c), nil
@@ -379,6 +411,48 @@ func isHexDigit(c rune) bool {
 		return true
 	}
 	return false
+}
+
+func (l *lexer) nextInCharProp(c rune) (*token, error) {
+	switch c {
+	case '{':
+		return newToken(tokenKindLBrace, nullChar), nil
+	case '}':
+		return newToken(tokenKindRBrace, nullChar), nil
+	case '=':
+		return newToken(tokenKindEqual, nullChar), nil
+	default:
+		var b strings.Builder
+		fmt.Fprint(&b, string(c))
+		n := 1
+		for {
+			c, eof, err := l.read()
+			if err != nil {
+				return nil, err
+			}
+			if eof {
+				l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			if c == '}' || c == '=' {
+				err := l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			fmt.Fprint(&b, string(c))
+			n++
+		}
+		sym := strings.TrimSpace(b.String())
+		if len(sym) == 0 {
+			raiseSyntaxError(synErrCharPropInvalidSymbol)
+		}
+		return newCharPropSymbolToken(sym), nil
+	}
 }
 
 func (l *lexer) read() (rune, bool, error) {
