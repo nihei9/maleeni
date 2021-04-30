@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -1118,7 +1117,7 @@ func TestParse(t *testing.T) {
 	if root == nil {
 		t.Fatal("root of AST is nil")
 	}
-	printAST(os.Stdout, root, "", "", false)
+	// printAST(os.Stdout, root, "", "", false)
 
 	{
 		expectedAST := genConcatNode(
