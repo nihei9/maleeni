@@ -488,6 +488,17 @@ func TestParser_parse(t *testing.T) {
 			),
 		},
 		{
+			pattern: "[\\u{004E}]",
+			ast: newConcatNode(
+				newSymbolNodeWithPos(byte('N'), symPos(1)),
+				newEndMarkerNodeWithPos(1, endPos(2)),
+			),
+		},
+		{
+			pattern:     "[\\p{Lu}]",
+			skipTestAST: true,
+		},
+		{
 			pattern:     "a[]",
 			syntaxError: synErrBExpNoElem,
 		},

@@ -329,6 +329,9 @@ func (p *parser) parseBExpElem() astNode {
 	if p.consume(tokenKindCodePointLeader) {
 		return p.parseCodePoint()
 	}
+	if p.consume(tokenKindCharPropLeader) {
+		return p.parseCharProp()
+	}
 	left := p.parseNormalChar()
 	if left == nil {
 		return nil
