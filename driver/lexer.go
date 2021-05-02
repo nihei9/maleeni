@@ -226,6 +226,11 @@ func (l *lexer) next() (*Token, error) {
 				l.unread(unfixedBufLen)
 				return tok, nil
 			}
+			// When `buf` has unaccepted data and reads the EOF,
+			// the lexer treats the buffered data as an invalid token.
+			if len(buf) > 0 {
+				return newInvalidToken(newByteSequence(buf)), nil
+			}
 			return newEOFToken(), nil
 		}
 		buf = append(buf, v)
