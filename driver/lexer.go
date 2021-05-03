@@ -54,46 +54,54 @@ func (s byteSequence) merge(a byteSequence) byteSequence {
 }
 
 type Token struct {
-	ID      int          `json:"id"`
-	Kind    string       `json:"kind"`
-	Match   byteSequence `json:"match"`
-	Text    string       `json:"text"`
-	EOF     bool         `json:"eof"`
-	Invalid bool         `json:"invalid"`
+	Mode     spec.LexModeNum  `json:"mode"`
+	ModeName spec.LexModeName `json:"mode_name"`
+	ID       int              `json:"id"`
+	Kind     string           `json:"kind"`
+	Match    byteSequence     `json:"match"`
+	Text     string           `json:"text"`
+	EOF      bool             `json:"eof"`
+	Invalid  bool             `json:"invalid"`
 }
 
-func newToken(id int, kind string, match byteSequence) *Token {
+func newToken(mode spec.LexModeNum, modeName spec.LexModeName, id int, kind string, match byteSequence) *Token {
 	return &Token{
-		ID:    id,
-		Kind:  kind,
-		Match: match,
-		Text:  string(match.ByteSlice()),
+		Mode:     mode,
+		ModeName: modeName,
+		ID:       id,
+		Kind:     kind,
+		Match:    match,
+		Text:     string(match.ByteSlice()),
 	}
 }
 
-func newEOFToken() *Token {
+func newEOFToken(mode spec.LexModeNum, modeName spec.LexModeName) *Token {
 	return &Token{
-		ID:  0,
-		EOF: true,
+		Mode:     mode,
+		ModeName: modeName,
+		ID:       0,
+		EOF:      true,
 	}
 }
 
-func newInvalidToken(match byteSequence) *Token {
+func newInvalidToken(mode spec.LexModeNum, modeName spec.LexModeName, match byteSequence) *Token {
 	return &Token{
-		ID:      0,
-		Match:   match,
-		Invalid: true,
+		Mode:     mode,
+		ModeName: modeName,
+		ID:       0,
+		Match:    match,
+		Invalid:  true,
 	}
 }
 
 func (t *Token) String() string {
 	if t.Invalid {
-		return fmt.Sprintf("!{text: %v, byte: %v}", t.Text, t.Match)
+		return fmt.Sprintf("!{mode: %v, mode name: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.Text, t.Match)
 	}
 	if t.EOF {
 		return "{eof}"
 	}
-	return fmt.Sprintf("{id: %v, kind: %v, text: %v, byte: %v}", t.ID, t.Kind, t.Text, t.Match)
+	return fmt.Sprintf("{mode: %v, mode name: %v, id: %v, kind: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.ID, t.Kind, t.Text, t.Match)
 }
 
 type lexerOption func(l *lexer) error
@@ -110,11 +118,12 @@ func EnableLogging(w io.Writer) lexerOption {
 }
 
 type lexer struct {
-	clspec *spec.CompiledLexSpec
-	src    []byte
-	srcPtr int
-	tokBuf []*Token
-	logger log.Logger
+	clspec    *spec.CompiledLexSpec
+	src       []byte
+	srcPtr    int
+	tokBuf    []*Token
+	modeStack []spec.LexModeNum
+	logger    log.Logger
 }
 
 func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) (*lexer, error) {
@@ -126,6 +135,9 @@ func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) 
 		clspec: clspec,
 		src:    b,
 		srcPtr: 0,
+		modeStack: []spec.LexModeNum{
+			clspec.InitialMode,
+		},
 		logger: log.NewNopLogger(),
 	}
 	for _, opt := range opts {
@@ -142,8 +154,9 @@ func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) 
 func (l *lexer) Next() (*Token, error) {
 	l.logger.Log(`lexer#Next():
   State:
+    mode: #%v %v
     pointer: %v
-    token buffer: %v`, l.srcPtr, l.tokBuf)
+    token buffer: %v`, l.mode(), l.clspec.Modes[l.mode()], l.srcPtr, l.tokBuf)
 
 	if len(l.tokBuf) > 0 {
 		tok := l.tokBuf[0]
@@ -154,7 +167,7 @@ func (l *lexer) Next() (*Token, error) {
 		return tok, nil
 	}
 
-	tok, err := l.next()
+	tok, err := l.nextAndTranMode()
 	if err != nil {
 		l.logger.Log("  Detectes an error: %v", err)
 		return nil, err
@@ -168,7 +181,7 @@ func (l *lexer) Next() (*Token, error) {
 	}
 	errTok := tok
 	for {
-		tok, err = l.next()
+		tok, err = l.nextAndTranMode()
 		if err != nil {
 			l.logger.Log("  Detectes an error: %v", err)
 			return nil, err
@@ -205,7 +218,7 @@ func (l *lexer) peekN(n int) (*Token, error) {
 		return nil, fmt.Errorf("peekN() can handle only [0..2]")
 	}
 	for len(l.tokBuf) < n+1 {
-		tok, err := l.next()
+		tok, err := l.nextAndTranMode()
 		if err != nil {
 			return nil, err
 		}
@@ -214,8 +227,41 @@ func (l *lexer) peekN(n int) (*Token, error) {
 	return l.tokBuf[n], nil
 }
 
+func (l *lexer) nextAndTranMode() (*Token, error) {
+	tok, err := l.next()
+	if err != nil {
+		return nil, err
+	}
+	if tok.EOF || tok.Invalid {
+		return tok, nil
+	}
+	spec := l.clspec.Specs[l.mode()]
+	if spec.Pop[tok.ID] == 1 {
+		err := l.popMode()
+		if err != nil {
+			return nil, err
+		}
+	}
+	mode := spec.Push[tok.ID]
+	if !mode.IsNil() {
+		l.pushMode(mode)
+	}
+	// The checking length of the mode stack must be at after pop and push operations
+	// because those operations can be performed at the same time.
+	// When the mode stack has just one element and popped it, the mode stack will be temporarily emptied.
+	// However, since a push operation may be performed immediately after it,
+	// the lexer allows the stack to be temporarily empty.
+	if len(l.modeStack) == 0 {
+		return nil, fmt.Errorf("a mode stack must have at least one element")
+	}
+	return tok, nil
+}
+
 func (l *lexer) next() (*Token, error) {
-	state := l.clspec.DFA.InitialState
+	mode := l.mode()
+	modeName := l.clspec.Modes[mode]
+	spec := l.clspec.Specs[mode]
+	state := spec.DFA.InitialState
 	buf := []byte{}
 	unfixedBufLen := 0
 	var tok *Token
@@ -229,13 +275,13 @@ func (l *lexer) next() (*Token, error) {
 			// When `buf` has unaccepted data and reads the EOF,
 			// the lexer treats the buffered data as an invalid token.
 			if len(buf) > 0 {
-				return newInvalidToken(newByteSequence(buf)), nil
+				return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
 			}
-			return newEOFToken(), nil
+			return newEOFToken(mode, modeName), nil
 		}
 		buf = append(buf, v)
 		unfixedBufLen++
-		entry := l.clspec.DFA.Transition[state]
+		entry := spec.DFA.Transition[state]
 		if len(entry) == 0 {
 			return nil, fmt.Errorf("no transition entry; state: %v", state)
 		}
@@ -245,15 +291,32 @@ func (l *lexer) next() (*Token, error) {
 				l.unread(unfixedBufLen)
 				return tok, nil
 			}
-			return newInvalidToken(newByteSequence(buf)), nil
+			return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
 		}
 		state = nextState
-		id, ok := l.clspec.DFA.AcceptingStates[state]
+		id, ok := spec.DFA.AcceptingStates[state]
 		if ok {
-			tok = newToken(id, l.clspec.Kinds[id].String(), newByteSequence(buf))
+			tok = newToken(mode, modeName, id, spec.Kinds[id].String(), newByteSequence(buf))
 			unfixedBufLen = 0
 		}
 	}
+}
+
+func (l *lexer) mode() spec.LexModeNum {
+	return l.modeStack[len(l.modeStack)-1]
+}
+
+func (l *lexer) pushMode(mode spec.LexModeNum) {
+	l.modeStack = append(l.modeStack, mode)
+}
+
+func (l *lexer) popMode() error {
+	sLen := len(l.modeStack)
+	if sLen == 0 {
+		return fmt.Errorf("cannot pop a lex mode from a lex mode stack any more")
+	}
+	l.modeStack = l.modeStack[:sLen-1]
+	return nil
 }
 
 func (l *lexer) read() (byte, bool) {

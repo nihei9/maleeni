@@ -3,6 +3,7 @@ package spec
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -37,9 +38,61 @@ func (p LexPattern) validate() error {
 	return nil
 }
 
+const lexModePattern = "[A-Za-z_][0-9A-Za-z_]*"
+
+var lexModeRE = regexp.MustCompile(lexKindPattern)
+
+type LexModeName string
+
+const (
+	LexModeNameNil     = LexModeName("")
+	LexModeNameDefault = LexModeName("default")
+)
+
+func (m LexModeName) String() string {
+	return string(m)
+}
+
+func (m LexModeName) validate() error {
+	if m.isNil() || !lexModeRE.Match([]byte(m)) {
+		return fmt.Errorf("mode must be %v", lexModePattern)
+	}
+	return nil
+}
+
+func (m LexModeName) isNil() bool {
+	return m == LexModeNameNil
+}
+
+type LexModeNum int
+
+const (
+	LexModeNumNil     = LexModeNum(0)
+	LexModeNumDefault = LexModeNum(1)
+)
+
+func (n LexModeNum) String() string {
+	return strconv.Itoa(int(n))
+}
+
+func (n LexModeNum) Int() int {
+	return int(n)
+}
+
+func (n LexModeNum) Succ() LexModeNum {
+	return n + 1
+}
+
+func (n LexModeNum) IsNil() bool {
+	return n == LexModeNumNil
+}
+
 type LexEntry struct {
-	Kind    LexKind    `json:"kind"`
-	Pattern LexPattern `json:"pattern"`
+	Kind    LexKind       `json:"kind"`
+	Pattern LexPattern    `json:"pattern"`
+	Modes   []LexModeName `json:"modes"`
+	Push    LexModeName   `json:"push"`
+	Pop     bool          `json:"pop"`
 }
 
 func (e *LexEntry) validate() error {
@@ -50,6 +103,14 @@ func (e *LexEntry) validate() error {
 	err = e.Pattern.validate()
 	if err != nil {
 		return err
+	}
+	if len(e.Modes) > 0 {
+		for _, mode := range e.Modes {
+			err = mode.validate()
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -97,7 +158,15 @@ type TransitionTable struct {
 	Transition      [][]int     `json:"transition"`
 }
 
-type CompiledLexSpec struct {
+type CompiledLexModeSpec struct {
 	Kinds []LexKind        `json:"kinds"`
+	Push  []LexModeNum     `json:"push"`
+	Pop   []int            `json:"pop"`
 	DFA   *TransitionTable `json:"dfa"`
+}
+
+type CompiledLexSpec struct {
+	InitialMode LexModeNum             `json:"initial_mode"`
+	Modes       []LexModeName          `json:"modes"`
+	Specs       []*CompiledLexModeSpec `json:"specs"`
 }
