@@ -82,8 +82,8 @@ func TestASTNode(t *testing.T) {
 	tests := []struct {
 		root     astNode
 		nullable bool
-		first    symbolPositionSet
-		last     symbolPositionSet
+		first    *symbolPositionSet
+		last     *symbolPositionSet
 	}{
 		{
 			root:     newSymbolNodeWithPos(0, 1),

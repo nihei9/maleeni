@@ -52,17 +52,26 @@ func (p symbolPosition) describe() (uint16, bool) {
 	return v, false
 }
 
-type symbolPositionSet map[symbolPosition]struct{}
-
-func newSymbolPositionSet() symbolPositionSet {
-	return map[symbolPosition]struct{}{}
+type symbolPositionSet struct {
+	// `s` represents a set of symbol positions.
+	// However, immediately after adding a symbol position, the elements may be duplicated.
+	// When you need an aligned set with no duplicates, you can get such value via the set function.
+	s      []symbolPosition
+	sorted bool
 }
 
-func (s symbolPositionSet) String() string {
-	if len(s) <= 0 {
+func newSymbolPositionSet() *symbolPositionSet {
+	return &symbolPositionSet{
+		s:      []symbolPosition{},
+		sorted: false,
+	}
+}
+
+func (s *symbolPositionSet) String() string {
+	if len(s.s) <= 0 {
 		return "{}"
 	}
-	ps := s.sort()
+	ps := s.sortAndRemoveDuplicates()
 	var b strings.Builder
 	fmt.Fprintf(&b, "{")
 	for i, p := range ps {
@@ -76,22 +85,27 @@ func (s symbolPositionSet) String() string {
 	return b.String()
 }
 
-func (s symbolPositionSet) add(pos symbolPosition) symbolPositionSet {
-	s[pos] = struct{}{}
+func (s *symbolPositionSet) set() []symbolPosition {
+	s.sortAndRemoveDuplicates()
+	return s.s
+}
+
+func (s *symbolPositionSet) add(pos symbolPosition) *symbolPositionSet {
+	s.s = append(s.s, pos)
+	s.sorted = false
 	return s
 }
 
-func (s symbolPositionSet) merge(t symbolPositionSet) symbolPositionSet {
-	for p := range t {
-		s.add(p)
-	}
+func (s *symbolPositionSet) merge(t *symbolPositionSet) *symbolPositionSet {
+	s.s = append(s.s, t.s...)
+	s.sorted = false
 	return s
 }
 
-func (s symbolPositionSet) intersect(set symbolPositionSet) symbolPositionSet {
+func (s *symbolPositionSet) intersect(set *symbolPositionSet) *symbolPositionSet {
 	in := newSymbolPositionSet()
-	for p1 := range s {
-		for p2 := range set {
+	for _, p1 := range s.s {
+		for _, p2 := range set.s {
 			if p1 != p2 {
 				continue
 			}
@@ -101,11 +115,11 @@ func (s symbolPositionSet) intersect(set symbolPositionSet) symbolPositionSet {
 	return in
 }
 
-func (s symbolPositionSet) hash() string {
-	if len(s) <= 0 {
+func (s *symbolPositionSet) hash() string {
+	if len(s.s) <= 0 {
 		return ""
 	}
-	sorted := s.sort()
+	sorted := s.sortAndRemoveDuplicates()
 	var buf []byte
 	for _, p := range sorted {
 		b := make([]byte, 8)
@@ -118,15 +132,28 @@ func (s symbolPositionSet) hash() string {
 	return string(buf)
 }
 
-func (s symbolPositionSet) sort() []symbolPosition {
-	sorted := make([]symbolPosition, len(s))
-	i := 0
-	for p := range s {
-		sorted[i] = p
-		i++
+func (s *symbolPositionSet) sortAndRemoveDuplicates() []symbolPosition {
+	if s.sorted {
+		return s.s
 	}
-	sortSymbolPositions(sorted, 0, len(sorted)-1)
-	return sorted
+
+	sortSymbolPositions(s.s, 0, len(s.s)-1)
+
+	// Remove duplicates.
+	lastV := s.s[0]
+	nextIdx := 1
+	for _, v := range s.s[1:] {
+		if v == lastV {
+			continue
+		}
+		s.s[nextIdx] = v
+		nextIdx++
+		lastV = v
+	}
+	s.s = s.s[:nextIdx]
+	s.sorted = true
+
+	return s.s
 }
 
 // sortSymbolPositions sorts a slice of symbol positions as it uses quick sort.

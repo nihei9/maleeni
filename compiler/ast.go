@@ -9,8 +9,8 @@ type astNode interface {
 	fmt.Stringer
 	children() (astNode, astNode)
 	nullable() bool
-	first() symbolPositionSet
-	last() symbolPositionSet
+	first() *symbolPositionSet
+	last() *symbolPositionSet
 }
 
 var (
@@ -24,8 +24,8 @@ var (
 type symbolNode struct {
 	byteRange
 	pos       symbolPosition
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newSymbolNode(value byte) *symbolNode {
@@ -60,7 +60,7 @@ func (n *symbolNode) nullable() bool {
 	return false
 }
 
-func (n *symbolNode) first() symbolPositionSet {
+func (n *symbolNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.add(n.pos)
@@ -68,7 +68,7 @@ func (n *symbolNode) first() symbolPositionSet {
 	return n.firstMemo
 }
 
-func (n *symbolNode) last() symbolPositionSet {
+func (n *symbolNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.add(n.pos)
@@ -79,8 +79,8 @@ func (n *symbolNode) last() symbolPositionSet {
 type endMarkerNode struct {
 	id        int
 	pos       symbolPosition
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newEndMarkerNode(id int) *endMarkerNode {
@@ -102,7 +102,7 @@ func (n *endMarkerNode) nullable() bool {
 	return false
 }
 
-func (n *endMarkerNode) first() symbolPositionSet {
+func (n *endMarkerNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.add(n.pos)
@@ -110,7 +110,7 @@ func (n *endMarkerNode) first() symbolPositionSet {
 	return n.firstMemo
 }
 
-func (n *endMarkerNode) last() symbolPositionSet {
+func (n *endMarkerNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.add(n.pos)
@@ -121,8 +121,8 @@ func (n *endMarkerNode) last() symbolPositionSet {
 type concatNode struct {
 	left      astNode
 	right     astNode
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newConcatNode(left, right astNode) *concatNode {
@@ -144,24 +144,26 @@ func (n *concatNode) nullable() bool {
 	return n.left.nullable() && n.right.nullable()
 }
 
-func (n *concatNode) first() symbolPositionSet {
+func (n *concatNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.merge(n.left.first())
 		if n.left.nullable() {
 			n.firstMemo.merge(n.right.first())
 		}
+		n.firstMemo.sortAndRemoveDuplicates()
 	}
 	return n.firstMemo
 }
 
-func (n *concatNode) last() symbolPositionSet {
+func (n *concatNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.merge(n.right.last())
 		if n.right.nullable() {
 			n.lastMemo.merge(n.left.last())
 		}
+		n.lastMemo.sortAndRemoveDuplicates()
 	}
 	return n.lastMemo
 }
@@ -169,8 +171,8 @@ func (n *concatNode) last() symbolPositionSet {
 type altNode struct {
 	left      astNode
 	right     astNode
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newAltNode(left, right astNode) *altNode {
@@ -192,28 +194,30 @@ func (n *altNode) nullable() bool {
 	return n.left.nullable() || n.right.nullable()
 }
 
-func (n *altNode) first() symbolPositionSet {
+func (n *altNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.merge(n.left.first())
 		n.firstMemo.merge(n.right.first())
+		n.firstMemo.sortAndRemoveDuplicates()
 	}
 	return n.firstMemo
 }
 
-func (n *altNode) last() symbolPositionSet {
+func (n *altNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.merge(n.left.last())
 		n.lastMemo.merge(n.right.last())
+		n.lastMemo.sortAndRemoveDuplicates()
 	}
 	return n.lastMemo
 }
 
 type repeatNode struct {
 	left      astNode
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newRepeatNode(left astNode) *repeatNode {
@@ -234,18 +238,20 @@ func (n *repeatNode) nullable() bool {
 	return true
 }
 
-func (n *repeatNode) first() symbolPositionSet {
+func (n *repeatNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.merge(n.left.first())
+		n.firstMemo.sortAndRemoveDuplicates()
 	}
 	return n.firstMemo
 }
 
-func (n *repeatNode) last() symbolPositionSet {
+func (n *repeatNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.merge(n.left.last())
+		n.lastMemo.sortAndRemoveDuplicates()
 	}
 	return n.lastMemo
 }
@@ -260,8 +266,8 @@ func newRepeatOneOrMoreNode(left astNode) *concatNode {
 
 type optionNode struct {
 	left      astNode
-	firstMemo symbolPositionSet
-	lastMemo  symbolPositionSet
+	firstMemo *symbolPositionSet
+	lastMemo  *symbolPositionSet
 }
 
 func newOptionNode(left astNode) *optionNode {
@@ -282,18 +288,20 @@ func (n *optionNode) nullable() bool {
 	return true
 }
 
-func (n *optionNode) first() symbolPositionSet {
+func (n *optionNode) first() *symbolPositionSet {
 	if n.firstMemo == nil {
 		n.firstMemo = newSymbolPositionSet()
 		n.firstMemo.merge(n.left.first())
+		n.firstMemo.sortAndRemoveDuplicates()
 	}
 	return n.firstMemo
 }
 
-func (n *optionNode) last() symbolPositionSet {
+func (n *optionNode) last() *symbolPositionSet {
 	if n.lastMemo == nil {
 		n.lastMemo = newSymbolPositionSet()
 		n.lastMemo.merge(n.left.last())
+		n.lastMemo.sortAndRemoveDuplicates()
 	}
 	return n.lastMemo
 }
@@ -316,7 +324,7 @@ func copyAST(src astNode) astNode {
 	panic(fmt.Errorf("copyAST cannot handle %T type; AST: %v", src, src))
 }
 
-type followTable map[symbolPosition]symbolPositionSet
+type followTable map[symbolPosition]*symbolPositionSet
 
 func genFollowTable(root astNode) followTable {
 	follow := followTable{}
@@ -334,14 +342,14 @@ func calcFollow(follow followTable, ast astNode) {
 	switch n := ast.(type) {
 	case *concatNode:
 		l, r := n.children()
-		for _, p := range l.last().sort() {
+		for _, p := range l.last().set() {
 			if _, ok := follow[p]; !ok {
 				follow[p] = newSymbolPositionSet()
 			}
 			follow[p].merge(r.first())
 		}
 	case *repeatNode:
-		for _, p := range n.last().sort() {
+		for _, p := range n.last().set() {
 			if _, ok := follow[p]; !ok {
 				follow[p] = newSymbolPositionSet()
 			}

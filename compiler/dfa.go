@@ -16,18 +16,18 @@ type DFA struct {
 func genDFA(root astNode, symTab *symbolTable) *DFA {
 	initialState := root.first()
 	initialStateHash := initialState.hash()
-	stateMap := map[string]symbolPositionSet{}
+	stateMap := map[string]*symbolPositionSet{}
 	tranTab := map[string][256]string{}
 	{
 		follow := genFollowTable(root)
-		unmarkedStates := map[string]symbolPositionSet{
+		unmarkedStates := map[string]*symbolPositionSet{
 			initialStateHash: initialState,
 		}
 		for len(unmarkedStates) > 0 {
-			nextUnmarkedStates := map[string]symbolPositionSet{}
+			nextUnmarkedStates := map[string]*symbolPositionSet{}
 			for hash, state := range unmarkedStates {
-				tranTabOfState := [256]symbolPositionSet{}
-				for _, pos := range state.sort() {
+				tranTabOfState := [256]*symbolPositionSet{}
+				for _, pos := range state.set() {
 					if pos.isEndMark() {
 						continue
 					}
@@ -66,7 +66,7 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 	accTab := map[string]int{}
 	{
 		for h, s := range stateMap {
-			for pos := range s {
+			for _, pos := range s.set() {
 				if !pos.isEndMark() {
 					continue
 				}
