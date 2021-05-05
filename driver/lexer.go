@@ -201,32 +201,6 @@ func (l *lexer) Next() (*Token, error) {
 	return errTok, nil
 }
 
-func (l *lexer) Peek1() (*Token, error) {
-	return l.peekN(0)
-}
-
-func (l *lexer) Peek2() (*Token, error) {
-	return l.peekN(1)
-}
-
-func (l *lexer) Peek3() (*Token, error) {
-	return l.peekN(2)
-}
-
-func (l *lexer) peekN(n int) (*Token, error) {
-	if n < 0 || n > 2 {
-		return nil, fmt.Errorf("peekN() can handle only [0..2]")
-	}
-	for len(l.tokBuf) < n+1 {
-		tok, err := l.nextAndTranMode()
-		if err != nil {
-			return nil, err
-		}
-		l.tokBuf = append(l.tokBuf, tok)
-	}
-	return l.tokBuf[n], nil
-}
-
 func (l *lexer) nextAndTranMode() (*Token, error) {
 	tok, err := l.next()
 	if err != nil {

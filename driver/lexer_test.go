@@ -551,66 +551,6 @@ func TestLexer_Next(t *testing.T) {
 	}
 }
 
-func TestLexer_PeekN(t *testing.T) {
-	clspec, err := compiler.Compile(&spec.LexSpec{
-		Entries: []*spec.LexEntry{
-			newLexEntryDefaultNOP("t1", "foo"),
-			newLexEntryDefaultNOP("t2", "bar"),
-		},
-	})
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-	lex, err := NewLexer(clspec, strings.NewReader("foobar"))
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-
-	expectedTokens := []*Token{
-		newTokenDefault(1, "t1", []byte("foo")),
-		newTokenDefault(2, "t2", []byte("bar")),
-		newEOFTokenDefault(),
-	}
-
-	tok, err := lex.Peek1()
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-	if tok == nil {
-		t.Fatalf("token is nil")
-	}
-	testToken(t, expectedTokens[0], tok)
-
-	tok, err = lex.Peek2()
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-	if tok == nil {
-		t.Fatalf("token is nil")
-	}
-	testToken(t, expectedTokens[1], tok)
-
-	tok, err = lex.Peek3()
-	if err != nil {
-		t.Fatalf("unexpected error occurred: %v", err)
-	}
-	if tok == nil {
-		t.Fatalf("token is nil")
-	}
-	testToken(t, expectedTokens[2], tok)
-
-	for _, eTok := range expectedTokens {
-		tok, err = lex.Next()
-		if err != nil {
-			t.Fatalf("unexpected error occurred: %v", err)
-		}
-		if tok == nil {
-			t.Fatalf("token is nil")
-		}
-		testToken(t, eTok, tok)
-	}
-}
-
 func testToken(t *testing.T, expected, actual *Token) {
 	t.Helper()
 
