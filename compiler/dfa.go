@@ -107,8 +107,12 @@ func genTransitionTable(dfa *DFA) (*spec.TransitionTable, error) {
 		state2Num[s] = i + 1
 	}
 
-	acc := map[int]int{}
-	for s, id := range dfa.AcceptingStatesTable {
+	acc := make([]int, len(dfa.States)+1)
+	for _, s := range dfa.States {
+		id, ok := dfa.AcceptingStatesTable[s]
+		if !ok {
+			continue
+		}
 		acc[state2Num[s]] = id
 	}
 

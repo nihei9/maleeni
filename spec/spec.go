@@ -171,7 +171,7 @@ type UniqueEntriesTable struct {
 
 type TransitionTable struct {
 	InitialState           int                 `json:"initial_state"`
-	AcceptingStates        map[int]int         `json:"accepting_states"`
+	AcceptingStates        []int               `json:"accepting_states"`
 	RowCount               int                 `json:"row_count"`
 	ColCount               int                 `json:"col_count"`
 	Transition             *UniqueEntriesTable `json:"transition,omitempty"`

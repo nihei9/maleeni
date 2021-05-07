@@ -264,8 +264,8 @@ func (l *lexer) next() (*Token, error) {
 			return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
 		}
 		state = nextState
-		id, ok := spec.DFA.AcceptingStates[state]
-		if ok {
+		id := spec.DFA.AcceptingStates[state]
+		if id != 0 {
 			tok = newToken(mode, modeName, id, spec.Kinds[id].String(), newByteSequence(buf))
 			unfixedBufLen = 0
 		}
