@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/nihei9/maleeni/compressor"
 	"github.com/nihei9/maleeni/log"
 	"github.com/nihei9/maleeni/spec"
 )
@@ -160,12 +161,17 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 		}
 
 		config.logger.Log(`DFA:
-  States: %v states
-  Initial State: %v`, len(tranTab.Transition), tranTab.InitialState)
+  States: %v states (%v entries)
+  Initial State: %v`, tranTab.RowCount, tranTab.RowCount*tranTab.ColCount, tranTab.InitialState)
 		config.logger.Log("  Accepting States:")
 		for state, symbol := range tranTab.AcceptingStates {
 			config.logger.Log("    %v: %v", state, symbol)
 		}
+	}
+
+	tranTab, err := compressTransitionTable(tranTab)
+	if err != nil {
+		return nil, err
 	}
 
 	return &spec.CompiledLexModeSpec{
@@ -174,4 +180,47 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 		Pop:   pop,
 		DFA:   tranTab,
 	}, nil
+}
+
+func compressTransitionTable(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
+	ueTab := compressor.NewUniqueEntriesTable()
+	{
+		orig, err := compressor.NewOriginalTable(tranTab.UncompressedTransition, tranTab.ColCount)
+		if err != nil {
+			return nil, err
+		}
+		err = ueTab.Compress(orig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	rdTab := compressor.NewRowDisplacementTable(0)
+	{
+		orig, err := compressor.NewOriginalTable(ueTab.UniqueEntries, ueTab.OriginalColCount)
+		if err != nil {
+			return nil, err
+		}
+		err = rdTab.Compress(orig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tranTab.Transition = &spec.UniqueEntriesTable{
+		UniqueEntries: &spec.RowDisplacementTable{
+			OriginalRowCount: rdTab.OriginalRowCount,
+			OriginalColCount: rdTab.OriginalColCount,
+			EmptyValue:       rdTab.EmptyValue,
+			Entries:          rdTab.Entries,
+			Bounds:           rdTab.Bounds,
+			RowDisplacement:  rdTab.RowDisplacement,
+		},
+		RowNums:          ueTab.RowNums,
+		OriginalRowCount: ueTab.OriginalRowCount,
+		OriginalColCount: ueTab.OriginalColCount,
+	}
+	tranTab.UncompressedTransition = nil
+
+	return tranTab, nil
 }

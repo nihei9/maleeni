@@ -152,10 +152,30 @@ func (s *LexSpec) Validate() error {
 	return nil
 }
 
+type RowDisplacementTable struct {
+	OriginalRowCount int   `json:"original_row_count"`
+	OriginalColCount int   `json:"original_col_count"`
+	EmptyValue       int   `json:"empty_value"`
+	Entries          []int `json:"entries"`
+	Bounds           []int `json:"bounds"`
+	RowDisplacement  []int `json:"row_displacement"`
+}
+
+type UniqueEntriesTable struct {
+	UniqueEntries    *RowDisplacementTable `json:"unique_entries"`
+	RowNums          []int                 `json:"row_nums"`
+	OriginalRowCount int                   `json:"original_row_count"`
+	OriginalColCount int                   `json:"original_col_count"`
+	EmptyValue       int                   `json:"empty_value"`
+}
+
 type TransitionTable struct {
-	InitialState    int         `json:"initial_state"`
-	AcceptingStates map[int]int `json:"accepting_states"`
-	Transition      [][]int     `json:"transition"`
+	InitialState           int                 `json:"initial_state"`
+	AcceptingStates        map[int]int         `json:"accepting_states"`
+	RowCount               int                 `json:"row_count"`
+	ColCount               int                 `json:"col_count"`
+	Transition             *UniqueEntriesTable `json:"transition,omitempty"`
+	UncompressedTransition []int               `json:"uncompressed_transition,omitempty"`
 }
 
 type CompiledLexModeSpec struct {

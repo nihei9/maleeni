@@ -255,12 +255,8 @@ func (l *lexer) next() (*Token, error) {
 		}
 		buf = append(buf, v)
 		unfixedBufLen++
-		entry := spec.DFA.Transition[state]
-		if len(entry) == 0 {
-			return nil, fmt.Errorf("no transition entry; state: %v", state)
-		}
-		nextState := entry[v]
-		if nextState == 0 {
+		nextState, ok := l.lookupNextState(mode, state, int(v))
+		if !ok {
 			if tok != nil {
 				l.unread(unfixedBufLen)
 				return tok, nil
@@ -274,6 +270,16 @@ func (l *lexer) next() (*Token, error) {
 			unfixedBufLen = 0
 		}
 	}
+}
+
+func (l *lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bool) {
+	tab := l.clspec.Specs[mode].DFA.Transition
+	rowNum := tab.RowNums[state]
+	d := tab.UniqueEntries.RowDisplacement[rowNum]
+	if tab.UniqueEntries.Bounds[d+v] != rowNum {
+		return tab.UniqueEntries.EmptyValue, false
+	}
+	return tab.UniqueEntries.Entries[d+v], true
 }
 
 func (l *lexer) mode() spec.LexModeNum {

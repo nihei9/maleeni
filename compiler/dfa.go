@@ -112,18 +112,20 @@ func genTransitionTable(dfa *DFA) (*spec.TransitionTable, error) {
 		acc[state2Num[s]] = id
 	}
 
-	tran := make([][]int, len(dfa.States)+1)
+	rowCount := len(dfa.States) + 1
+	colCount := 256
+	tran := make([]int, rowCount*colCount)
 	for s, tab := range dfa.TransitionTable {
-		entry := make([]int, 256)
 		for v, to := range tab {
-			entry[v] = state2Num[to]
+			tran[state2Num[s]*256+v] = state2Num[to]
 		}
-		tran[state2Num[s]] = entry
 	}
 
 	return &spec.TransitionTable{
-		InitialState:    state2Num[dfa.InitialState],
-		AcceptingStates: acc,
-		Transition:      tran,
+		InitialState:           state2Num[dfa.InitialState],
+		AcceptingStates:        acc,
+		UncompressedTransition: tran,
+		RowCount:               rowCount,
+		ColCount:               colCount,
 	}, nil
 }
