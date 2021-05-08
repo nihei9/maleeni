@@ -10,9 +10,9 @@ import (
 	"github.com/nihei9/maleeni/spec"
 )
 
-type compilerOption func(c *compilerConfig) error
+type CompilerOption func(c *compilerConfig) error
 
-func EnableLogging(w io.Writer) compilerOption {
+func EnableLogging(w io.Writer) CompilerOption {
 	return func(c *compilerConfig) error {
 		logger, err := log.NewLogger(w)
 		if err != nil {
@@ -27,7 +27,7 @@ type compilerConfig struct {
 	logger log.Logger
 }
 
-func Compile(lexspec *spec.LexSpec, opts ...compilerOption) (*spec.CompiledLexSpec, error) {
+func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSpec, error) {
 	err := lexspec.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("invalid lexical specification:\n%w", err)

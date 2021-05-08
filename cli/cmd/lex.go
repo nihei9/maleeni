@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -12,6 +11,12 @@ import (
 	"github.com/nihei9/maleeni/spec"
 	"github.com/spf13/cobra"
 )
+
+var lexFlags = struct {
+	debug  *bool
+	source *string
+	output *string
+}{}
 
 func init() {
 	cmd := &cobra.Command{
@@ -23,6 +28,9 @@ As use ` + "`maleeni compile`" + `, you can generate the specification.`,
 		Args:    cobra.ExactArgs(1),
 		RunE:    runLex,
 	}
+	lexFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
+	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default: stdin)")
+	lexFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default: stdout)")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -31,31 +39,55 @@ func runLex(cmd *cobra.Command, args []string) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled lexical specification: %w", err)
 	}
-	var w io.Writer
-	{
+
+	var opts []driver.LexerOption
+	if *lexFlags.debug {
 		fileName := "maleeni-lex.log"
 		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			return fmt.Errorf("Cannot open the log file %s: %w", fileName, err)
 		}
 		defer f.Close()
-		w = f
-	}
-	fmt.Fprintf(w, `maleeni lex starts.
+		fmt.Fprintf(f, `maleeni lex starts.
 Date time: %v
 ---
 `, time.Now().Format(time.RFC3339))
-	defer func() {
-		fmt.Fprintf(w, "---\n")
-		if retErr != nil {
-			fmt.Fprintf(w, "maleeni lex failed: %v\n", retErr)
-		} else {
-			fmt.Fprintf(w, "maleeni lex succeeded.\n")
+		defer func() {
+			fmt.Fprintf(f, "---\n")
+			if retErr != nil {
+				fmt.Fprintf(f, "maleeni lex failed: %v\n", retErr)
+			} else {
+				fmt.Fprintf(f, "maleeni lex succeeded.\n")
+			}
+		}()
+
+		opts = append(opts, driver.EnableLogging(f))
+	}
+
+	var lex *driver.Lexer
+	{
+		src := os.Stdin
+		if *lexFlags.source != "" {
+			f, err := os.Open(*lexFlags.source)
+			if err != nil {
+				return fmt.Errorf("Cannot open the source file %s: %w", *lexFlags.source, err)
+			}
+			defer f.Close()
+			src = f
 		}
-	}()
-	lex, err := driver.NewLexer(clspec, os.Stdin, driver.EnableLogging(w))
-	if err != nil {
-		return err
+		lex, err = driver.NewLexer(clspec, src, opts...)
+		if err != nil {
+			return err
+		}
+	}
+	w := os.Stdout
+	if *lexFlags.output != "" {
+		f, err := os.OpenFile(*lexFlags.output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return fmt.Errorf("Cannot open the output file %s: %w", *lexFlags.output, err)
+		}
+		defer f.Close()
+		w = f
 	}
 	for {
 		tok, err := lex.Next()
@@ -66,7 +98,7 @@ Date time: %v
 		if err != nil {
 			return fmt.Errorf("failed to marshal a token; token: %v, error: %v\n", tok, err)
 		}
-		fmt.Fprintf(os.Stdout, "%v\n", string(data))
+		fmt.Fprintf(w, "%v\n", string(data))
 		if tok.EOF {
 			break
 		}

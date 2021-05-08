@@ -104,10 +104,10 @@ func (t *Token) String() string {
 	return fmt.Sprintf("{mode: %v, mode name: %v, id: %v, kind: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.ID, t.Kind, t.Text, t.Match)
 }
 
-type lexerOption func(l *lexer) error
+type LexerOption func(l *Lexer) error
 
-func EnableLogging(w io.Writer) lexerOption {
-	return func(l *lexer) error {
+func EnableLogging(w io.Writer) LexerOption {
+	return func(l *Lexer) error {
 		logger, err := log.NewLogger(w)
 		if err != nil {
 			return err
@@ -117,7 +117,7 @@ func EnableLogging(w io.Writer) lexerOption {
 	}
 }
 
-type lexer struct {
+type Lexer struct {
 	clspec    *spec.CompiledLexSpec
 	src       []byte
 	srcPtr    int
@@ -126,12 +126,12 @@ type lexer struct {
 	logger    log.Logger
 }
 
-func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) (*lexer, error) {
+func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) {
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
 		return nil, err
 	}
-	l := &lexer{
+	l := &Lexer{
 		clspec: clspec,
 		src:    b,
 		srcPtr: 0,
@@ -151,7 +151,7 @@ func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...lexerOption) 
 	return l, nil
 }
 
-func (l *lexer) Next() (*Token, error) {
+func (l *Lexer) Next() (*Token, error) {
 	l.logger.Log(`lexer#Next():
   State:
     mode: #%v %v
@@ -201,7 +201,7 @@ func (l *lexer) Next() (*Token, error) {
 	return errTok, nil
 }
 
-func (l *lexer) nextAndTranMode() (*Token, error) {
+func (l *Lexer) nextAndTranMode() (*Token, error) {
 	tok, err := l.next()
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func (l *lexer) nextAndTranMode() (*Token, error) {
 	return tok, nil
 }
 
-func (l *lexer) next() (*Token, error) {
+func (l *Lexer) next() (*Token, error) {
 	mode := l.mode()
 	modeName := l.clspec.Modes[mode]
 	spec := l.clspec.Specs[mode]
@@ -272,7 +272,7 @@ func (l *lexer) next() (*Token, error) {
 	}
 }
 
-func (l *lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bool) {
+func (l *Lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bool) {
 	tab := l.clspec.Specs[mode].DFA.Transition
 	rowNum := tab.RowNums[state]
 	d := tab.UniqueEntries.RowDisplacement[rowNum]
@@ -282,15 +282,15 @@ func (l *lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bo
 	return tab.UniqueEntries.Entries[d+v], true
 }
 
-func (l *lexer) mode() spec.LexModeNum {
+func (l *Lexer) mode() spec.LexModeNum {
 	return l.modeStack[len(l.modeStack)-1]
 }
 
-func (l *lexer) pushMode(mode spec.LexModeNum) {
+func (l *Lexer) pushMode(mode spec.LexModeNum) {
 	l.modeStack = append(l.modeStack, mode)
 }
 
-func (l *lexer) popMode() error {
+func (l *Lexer) popMode() error {
 	sLen := len(l.modeStack)
 	if sLen == 0 {
 		return fmt.Errorf("cannot pop a lex mode from a lex mode stack any more")
@@ -299,7 +299,7 @@ func (l *lexer) popMode() error {
 	return nil
 }
 
-func (l *lexer) read() (byte, bool) {
+func (l *Lexer) read() (byte, bool) {
 	if l.srcPtr >= len(l.src) {
 		return 0, true
 	}
@@ -308,6 +308,6 @@ func (l *lexer) read() (byte, bool) {
 	return b, false
 }
 
-func (l *lexer) unread(n int) {
+func (l *Lexer) unread(n int) {
 	l.srcPtr -= n
 }
