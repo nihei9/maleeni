@@ -90,6 +90,7 @@ func newInvalidToken(mode spec.LexModeNum, modeName spec.LexModeName, match byte
 		ModeName: modeName,
 		ID:       0,
 		Match:    match,
+		Text:     string(match.ByteSlice()),
 		Invalid:  true,
 	}
 }

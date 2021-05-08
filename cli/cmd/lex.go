@@ -13,9 +13,10 @@ import (
 )
 
 var lexFlags = struct {
-	debug  *bool
-	source *string
-	output *string
+	debug        *bool
+	source       *string
+	output       *string
+	breakOnError *bool
 }{}
 
 func init() {
@@ -31,6 +32,7 @@ As use ` + "`maleeni compile`" + `, you can generate the specification.`,
 	lexFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
 	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default: stdin)")
 	lexFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default: stdout)")
+	lexFlags.breakOnError = cmd.Flags().BoolP("break-on-error", "b", false, "break lexical analysis with exit status 1 immediately when an error token appears.")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -97,6 +99,9 @@ Date time: %v
 		data, err := json.Marshal(tok)
 		if err != nil {
 			return fmt.Errorf("failed to marshal a token; token: %v, error: %v\n", tok, err)
+		}
+		if tok.Invalid && *lexFlags.breakOnError {
+			return fmt.Errorf("detected an error token: %v", string(data))
 		}
 		fmt.Fprintf(w, "%v\n", string(data))
 		if tok.EOF {
