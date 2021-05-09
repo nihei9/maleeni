@@ -53,15 +53,31 @@ func (s byteSequence) merge(a byteSequence) byteSequence {
 	return append([]byte(s), []byte(a)...)
 }
 
+// Token representes a token.
 type Token struct {
-	Mode     spec.LexModeNum  `json:"mode"`
+	// `Mode` represents a number that corresponds to a `ModeName`.
+	Mode spec.LexModeNum `json:"mode"`
+
+	// `ModeName` is a mode name that represents in which mode the lexer detected the token.
 	ModeName spec.LexModeName `json:"mode_name"`
-	ID       int              `json:"id"`
-	Kind     string           `json:"kind"`
-	Match    byteSequence     `json:"match"`
-	Text     string           `json:"text"`
-	EOF      bool             `json:"eof"`
-	Invalid  bool             `json:"invalid"`
+
+	// `ID` represents an ID that corresponds to a `Kind`.
+	ID int `json:"id"`
+
+	// `Kind` is a kind name that represents what kind the token has.
+	Kind string `json:"kind"`
+
+	// `Match` is a byte sequence matched a pattern of a lexical specification.
+	Match byteSequence `json:"match"`
+
+	// `Text` is a string representation of the `Match`.
+	Text string `json:"text"`
+
+	// If `EOF` is true, it means the token is the EOF token.
+	EOF bool `json:"eof"`
+
+	// If `Invalid` is true, it means the token is an error token.
+	Invalid bool `json:"invalid"`
 }
 
 func newToken(mode spec.LexModeNum, modeName spec.LexModeName, id int, kind string, match byteSequence) *Token {
