@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -56,28 +57,25 @@ func (s byteSequence) merge(a byteSequence) byteSequence {
 // Token representes a token.
 type Token struct {
 	// `Mode` represents a number that corresponds to a `ModeName`.
-	Mode spec.LexModeNum `json:"mode"`
+	Mode spec.LexModeNum
 
 	// `ModeName` is a mode name that represents in which mode the lexer detected the token.
-	ModeName spec.LexModeName `json:"mode_name"`
+	ModeName spec.LexModeName
 
 	// `ID` represents an ID that corresponds to a `Kind`.
-	ID int `json:"id"`
+	ID int
 
 	// `Kind` is a kind name that represents what kind the token has.
-	Kind string `json:"kind"`
-
-	// `Match` is a byte sequence matched a pattern of a lexical specification.
-	Match byteSequence `json:"match"`
-
-	// `Text` is a string representation of the `Match`.
-	Text string `json:"text"`
+	Kind string
 
 	// If `EOF` is true, it means the token is the EOF token.
-	EOF bool `json:"eof"`
+	EOF bool
 
 	// If `Invalid` is true, it means the token is an error token.
-	Invalid bool `json:"invalid"`
+	Invalid bool
+
+	// `match` is a byte sequence matched a pattern of a lexical specification.
+	match byteSequence
 }
 
 func newToken(mode spec.LexModeNum, modeName spec.LexModeName, id int, kind string, match byteSequence) *Token {
@@ -86,8 +84,7 @@ func newToken(mode spec.LexModeNum, modeName spec.LexModeName, id int, kind stri
 		ModeName: modeName,
 		ID:       id,
 		Kind:     kind,
-		Match:    match,
-		Text:     string(match.ByteSlice()),
+		match:    match,
 	}
 }
 
@@ -105,20 +102,52 @@ func newInvalidToken(mode spec.LexModeNum, modeName spec.LexModeName, match byte
 		Mode:     mode,
 		ModeName: modeName,
 		ID:       0,
-		Match:    match,
-		Text:     string(match.ByteSlice()),
+		match:    match,
 		Invalid:  true,
 	}
 }
 
 func (t *Token) String() string {
 	if t.Invalid {
-		return fmt.Sprintf("!{mode: %v, mode name: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.Text, t.Match)
+		return fmt.Sprintf("!{mode: %v, mode name: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.Text(), t.Match())
 	}
 	if t.EOF {
 		return "{eof}"
 	}
-	return fmt.Sprintf("{mode: %v, mode name: %v, id: %v, kind: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.ID, t.Kind, t.Text, t.Match)
+	return fmt.Sprintf("{mode: %v, mode name: %v, id: %v, kind: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.ID, t.Kind, t.Text(), t.Match())
+}
+
+// Match returns a byte slice matched a pattern of a lexical specification.
+func (t *Token) Match() []byte {
+	return t.match.ByteSlice()
+}
+
+// Text returns a string representation of a matched byte sequence.
+func (t *Token) Text() string {
+	return string(t.Match())
+}
+
+func (t *Token) MarshalJSON() ([]byte, error) {
+	m := t.match.ByteSlice()
+	return json.Marshal(struct {
+		Mode     int    `json:"mode"`
+		ModeName string `json:"mode_name"`
+		ID       int    `json:"id"`
+		Kind     string `json:"kind"`
+		Match    []byte `json:"match"`
+		Text     string `json:"text"`
+		EOF      bool   `json:"eof"`
+		Invalid  bool   `json:"invalid"`
+	}{
+		Mode:     t.Mode.Int(),
+		ModeName: t.ModeName.String(),
+		ID:       t.ID,
+		Kind:     t.Kind,
+		Match:    m,
+		Text:     string(m),
+		EOF:      t.EOF,
+		Invalid:  t.Invalid,
+	})
 }
 
 type LexerOption func(l *Lexer) error
@@ -207,7 +236,7 @@ func (l *Lexer) Next() (*Token, error) {
 		if !tok.Invalid {
 			break
 		}
-		errTok.Match = errTok.Match.merge(tok.Match)
+		errTok.match = errTok.match.merge(tok.match)
 		l.logger.Log("  error token: %v", errTok)
 	}
 	l.tokBuf = append(l.tokBuf, tok)

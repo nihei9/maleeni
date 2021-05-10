@@ -542,7 +542,7 @@ func TestLexer_Next(t *testing.T) {
 					break
 				}
 				testToken(t, eTok, tok)
-				// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match, string(tok.Match), tok.EOF, tok.Invalid)
+				// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match(), tok.Text(), tok.EOF, tok.Invalid)
 				if tok.EOF {
 					break
 				}
@@ -558,9 +558,9 @@ func testToken(t *testing.T, expected, actual *Token) {
 		actual.ModeName != actual.ModeName ||
 		actual.ID != expected.ID ||
 		actual.Kind != expected.Kind ||
-		!bytes.Equal(actual.Match, expected.Match) ||
+		!bytes.Equal(actual.Match(), expected.Match()) ||
 		actual.EOF != expected.EOF ||
 		actual.Invalid != expected.Invalid {
-		t.Fatalf(`unexpected token; want: %v ("%v"), got: %v ("%v")`, expected, string(expected.Match), actual, string(actual.Match))
+		t.Fatalf(`unexpected token; want: %v ("%v"), got: %v ("%v")`, expected, expected.Text(), actual, actual.Text())
 	}
 }
