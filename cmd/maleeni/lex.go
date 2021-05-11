@@ -30,8 +30,8 @@ As use ` + "`maleeni compile`" + `, you can generate the specification.`,
 		RunE:    runLex,
 	}
 	lexFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
-	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default: stdin)")
-	lexFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default: stdout)")
+	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
+	lexFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	lexFlags.breakOnError = cmd.Flags().BoolP("break-on-error", "b", false, "break lexical analysis with exit status 1 immediately when an error token appears.")
 	rootCmd.AddCommand(cmd)
 }

@@ -319,13 +319,29 @@ func (l *Lexer) next() (*Token, error) {
 }
 
 func (l *Lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bool) {
-	tab := l.clspec.Specs[mode].DFA.Transition
-	rowNum := tab.RowNums[state]
-	d := tab.UniqueEntries.RowDisplacement[rowNum]
-	if tab.UniqueEntries.Bounds[d+v] != rowNum {
-		return tab.UniqueEntries.EmptyValue, false
+	switch l.clspec.CompressionLevel {
+	case 2:
+		tab := l.clspec.Specs[mode].DFA.Transition
+		rowNum := tab.RowNums[state]
+		d := tab.UniqueEntries.RowDisplacement[rowNum]
+		if tab.UniqueEntries.Bounds[d+v] != rowNum {
+			return tab.UniqueEntries.EmptyValue, false
+		}
+		return tab.UniqueEntries.Entries[d+v], true
+	case 1:
+		tab := l.clspec.Specs[mode].DFA.Transition
+		next := tab.UncompressedUniqueEntries[tab.RowNums[state]*tab.OriginalColCount+v]
+		if next == 0 {
+			return 0, false
+		}
+		return next, true
 	}
-	return tab.UniqueEntries.Entries[d+v], true
+	spec := l.clspec.Specs[mode]
+	next := spec.DFA.UncompressedTransition[state*spec.DFA.ColCount+v]
+	if next == 0 {
+		return 0, false
+	}
+	return next, true
 }
 
 func (l *Lexer) mode() spec.LexModeNum {

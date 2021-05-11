@@ -526,28 +526,30 @@ func TestLexer_Next(t *testing.T) {
 		},
 	}
 	for i, tt := range test {
-		t.Run(fmt.Sprintf("#%v", i), func(t *testing.T) {
-			clspec, err := compiler.Compile(tt.lspec)
-			if err != nil {
-				t.Fatalf("unexpected error occurred: %v", err)
-			}
-			lexer, err := NewLexer(clspec, strings.NewReader(tt.src))
-			if err != nil {
-				t.Fatalf("unexpecated error occurred; %v", err)
-			}
-			for _, eTok := range tt.tokens {
-				tok, err := lexer.Next()
+		for compLv := compiler.CompressionLevelMin; compLv <= compiler.CompressionLevelMax; compLv++ {
+			t.Run(fmt.Sprintf("#%v-%v", i, compLv), func(t *testing.T) {
+				clspec, err := compiler.Compile(tt.lspec, compiler.CompressionLevel(compLv))
 				if err != nil {
-					t.Log(err)
-					break
+					t.Fatalf("unexpected error occurred: %v", err)
 				}
-				testToken(t, eTok, tok)
-				// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match(), tok.Text(), tok.EOF, tok.Invalid)
-				if tok.EOF {
-					break
+				lexer, err := NewLexer(clspec, strings.NewReader(tt.src))
+				if err != nil {
+					t.Fatalf("unexpecated error occurred; %v", err)
 				}
-			}
-		})
+				for _, eTok := range tt.tokens {
+					tok, err := lexer.Next()
+					if err != nil {
+						t.Log(err)
+						break
+					}
+					testToken(t, eTok, tok)
+					// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match(), tok.Text(), tok.EOF, tok.Invalid)
+					if tok.EOF {
+						break
+					}
+				}
+			})
+		}
 	}
 }
 

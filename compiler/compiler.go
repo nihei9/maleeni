@@ -23,8 +23,19 @@ func EnableLogging(w io.Writer) CompilerOption {
 	}
 }
 
+func CompressionLevel(lv int) CompilerOption {
+	return func(c *compilerConfig) error {
+		if lv < CompressionLevelMin || lv > CompressionLevelMax {
+			return fmt.Errorf("compression level must be %v to %v", CompressionLevelMin, CompressionLevelMax)
+		}
+		c.compLv = lv
+		return nil
+	}
+}
+
 type compilerConfig struct {
 	logger log.Logger
+	compLv int
 }
 
 func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSpec, error) {
@@ -59,9 +70,10 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}
 
 	return &spec.CompiledLexSpec{
-		InitialMode: spec.LexModeNumDefault,
-		Modes:       modes,
-		Specs:       modeSpecs,
+		InitialMode:      spec.LexModeNumDefault,
+		Modes:            modes,
+		CompressionLevel: config.compLv,
+		Specs:            modeSpecs,
 	}, nil
 }
 
@@ -169,9 +181,18 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 		}
 	}
 
-	tranTab, err := compressTransitionTable(tranTab)
-	if err != nil {
-		return nil, err
+	var err error
+	switch config.compLv {
+	case 2:
+		tranTab, err = compressTransitionTableLv2(tranTab)
+		if err != nil {
+			return nil, err
+		}
+	case 1:
+		tranTab, err = compressTransitionTableLv1(tranTab)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &spec.CompiledLexModeSpec{
@@ -182,7 +203,12 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 	}, nil
 }
 
-func compressTransitionTable(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
+const (
+	CompressionLevelMin = 0
+	CompressionLevelMax = 2
+)
+
+func compressTransitionTableLv2(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
 	ueTab := compressor.NewUniqueEntriesTable()
 	{
 		orig, err := compressor.NewOriginalTable(tranTab.UncompressedTransition, tranTab.ColCount)
@@ -219,6 +245,30 @@ func compressTransitionTable(tranTab *spec.TransitionTable) (*spec.TransitionTab
 		RowNums:          ueTab.RowNums,
 		OriginalRowCount: ueTab.OriginalRowCount,
 		OriginalColCount: ueTab.OriginalColCount,
+	}
+	tranTab.UncompressedTransition = nil
+
+	return tranTab, nil
+}
+
+func compressTransitionTableLv1(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
+	ueTab := compressor.NewUniqueEntriesTable()
+	{
+		orig, err := compressor.NewOriginalTable(tranTab.UncompressedTransition, tranTab.ColCount)
+		if err != nil {
+			return nil, err
+		}
+		err = ueTab.Compress(orig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tranTab.Transition = &spec.UniqueEntriesTable{
+		UncompressedUniqueEntries: ueTab.UniqueEntries,
+		RowNums:                   ueTab.RowNums,
+		OriginalRowCount:          ueTab.OriginalRowCount,
+		OriginalColCount:          ueTab.OriginalColCount,
 	}
 	tranTab.UncompressedTransition = nil
 

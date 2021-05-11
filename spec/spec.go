@@ -162,11 +162,12 @@ type RowDisplacementTable struct {
 }
 
 type UniqueEntriesTable struct {
-	UniqueEntries    *RowDisplacementTable `json:"unique_entries"`
-	RowNums          []int                 `json:"row_nums"`
-	OriginalRowCount int                   `json:"original_row_count"`
-	OriginalColCount int                   `json:"original_col_count"`
-	EmptyValue       int                   `json:"empty_value"`
+	UniqueEntries             *RowDisplacementTable `json:"unique_entries,omitempty"`
+	UncompressedUniqueEntries []int                 `json:"uncompressed_unique_entries,omitempty"`
+	RowNums                   []int                 `json:"row_nums"`
+	OriginalRowCount          int                   `json:"original_row_count"`
+	OriginalColCount          int                   `json:"original_col_count"`
+	EmptyValue                int                   `json:"empty_value"`
 }
 
 type TransitionTable struct {
@@ -186,7 +187,8 @@ type CompiledLexModeSpec struct {
 }
 
 type CompiledLexSpec struct {
-	InitialMode LexModeNum             `json:"initial_mode"`
-	Modes       []LexModeName          `json:"modes"`
-	Specs       []*CompiledLexModeSpec `json:"specs"`
+	InitialMode      LexModeNum             `json:"initial_mode"`
+	Modes            []LexModeName          `json:"modes"`
+	CompressionLevel int                    `json:"compression_level"`
+	Specs            []*CompiledLexModeSpec `json:"specs"`
 }

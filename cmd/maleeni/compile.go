@@ -15,6 +15,7 @@ import (
 var compileFlags = struct {
 	debug   *bool
 	lexSpec *string
+	compLv  *int
 	output  *string
 }{}
 
@@ -27,8 +28,9 @@ func init() {
 		RunE:    runCompile,
 	}
 	compileFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
-	compileFlags.lexSpec = cmd.Flags().StringP("lex-spec", "l", "", "lexical specification file path (default: stdin)")
-	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default: stdout)")
+	compileFlags.lexSpec = cmd.Flags().StringP("lex-spec", "l", "", "lexical specification file path (default stdin)")
+	compileFlags.compLv = cmd.Flags().IntP("compression-level", "c", compiler.CompressionLevelMax, "compression level")
+	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -38,7 +40,9 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		return fmt.Errorf("Cannot read a lexical specification: %w", err)
 	}
 
-	var opts []compiler.CompilerOption
+	opts := []compiler.CompilerOption{
+		compiler.CompressionLevel(*compileFlags.compLv),
+	}
 	if *compileFlags.debug {
 		fileName := "maleeni-compile.log"
 		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
