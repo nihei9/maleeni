@@ -1,5 +1,5 @@
 //go:generate go run ../cmd/generator/main.go
-//go:generate gofmt -w ucd_table.go
+//go:generate go fmt ucd_table.go
 
 package compiler
 
