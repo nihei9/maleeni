@@ -43,7 +43,7 @@ If you want to make sure that the lexical specification behaves as expected, you
 `maleeni lex` command outputs tokens in JSON format. For simplicity, print significant fields of the tokens in CSV format using jq command.
 
 ```sh
-$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind, .text, .eof] | @csv'
+$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_name, .text, .eof] | @csv'
 "word","The",false
 "whitespace"," ",false
 "word","truth",false
@@ -115,7 +115,7 @@ entry object:
 
 | Field   | Type             | Nullable | Description                                                                                   |
 |---------|------------------|----------|-----------------------------------------------------------------------------------------------|
-| kinds   | string           | false    | A name of a token kind                                                                        |
+| kind    | string           | false    | A name of a token kind                                                                        |
 | pattern | string           | false    | A pattern in a regular expression                                                             |
 | modes   | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                   |
 | push    | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears |

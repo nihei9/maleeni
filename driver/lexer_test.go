@@ -558,8 +558,8 @@ func testToken(t *testing.T, expected, actual *Token) {
 
 	if actual.Mode != expected.Mode ||
 		actual.ModeName != actual.ModeName ||
-		actual.ID != expected.ID ||
 		actual.Kind != expected.Kind ||
+		actual.KindName != expected.KindName ||
 		!bytes.Equal(actual.Match(), expected.Match()) ||
 		actual.EOF != expected.EOF ||
 		actual.Invalid != expected.Invalid {

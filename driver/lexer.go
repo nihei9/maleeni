@@ -62,11 +62,11 @@ type Token struct {
 	// `ModeName` is a mode name that represents in which mode the lexer detected the token.
 	ModeName spec.LexModeName
 
-	// `ID` represents an ID that corresponds to a `Kind`.
-	ID int
+	// `Kind` represents a number that corresponds to a `KindName`.
+	Kind int
 
-	// `Kind` is a kind name that represents what kind the token has.
-	Kind string
+	// `KindName` is a kind name that represents what kind the token has.
+	KindName string
 
 	// If `EOF` is true, it means the token is the EOF token.
 	EOF bool
@@ -78,12 +78,12 @@ type Token struct {
 	match byteSequence
 }
 
-func newToken(mode spec.LexModeNum, modeName spec.LexModeName, id int, kind string, match byteSequence) *Token {
+func newToken(mode spec.LexModeNum, modeName spec.LexModeName, kind int, kindName string, match byteSequence) *Token {
 	return &Token{
 		Mode:     mode,
 		ModeName: modeName,
-		ID:       id,
 		Kind:     kind,
+		KindName: kindName,
 		match:    match,
 	}
 }
@@ -92,7 +92,7 @@ func newEOFToken(mode spec.LexModeNum, modeName spec.LexModeName) *Token {
 	return &Token{
 		Mode:     mode,
 		ModeName: modeName,
-		ID:       0,
+		Kind:     0,
 		EOF:      true,
 	}
 }
@@ -101,7 +101,7 @@ func newInvalidToken(mode spec.LexModeNum, modeName spec.LexModeName, match byte
 	return &Token{
 		Mode:     mode,
 		ModeName: modeName,
-		ID:       0,
+		Kind:     0,
 		match:    match,
 		Invalid:  true,
 	}
@@ -114,7 +114,7 @@ func (t *Token) String() string {
 	if t.EOF {
 		return "{eof}"
 	}
-	return fmt.Sprintf("{mode: %v, mode name: %v, id: %v, kind: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.ID, t.Kind, t.Text(), t.Match())
+	return fmt.Sprintf("{mode: %v, mode name: %v, kind: %v, kind name: %v, text: %v, byte: %v}", t.Mode, t.ModeName, t.Kind, t.KindName, t.Text(), t.Match())
 }
 
 // Match returns a byte slice matched a pattern of a lexical specification.
@@ -128,23 +128,22 @@ func (t *Token) Text() string {
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
-	m := t.match.ByteSlice()
 	return json.Marshal(struct {
-		Mode     int    `json:"mode"`
-		ModeName string `json:"mode_name"`
-		ID       int    `json:"id"`
-		Kind     string `json:"kind"`
-		Match    []byte `json:"match"`
-		Text     string `json:"text"`
-		EOF      bool   `json:"eof"`
-		Invalid  bool   `json:"invalid"`
+		Mode     int          `json:"mode"`
+		ModeName string       `json:"mode_name"`
+		Kind     int          `json:"kind"`
+		KindName string       `json:"kind_name"`
+		Match    byteSequence `json:"match"`
+		Text     string       `json:"text"`
+		EOF      bool         `json:"eof"`
+		Invalid  bool         `json:"invalid"`
 	}{
 		Mode:     t.Mode.Int(),
 		ModeName: t.ModeName.String(),
-		ID:       t.ID,
 		Kind:     t.Kind,
-		Match:    m,
-		Text:     string(m),
+		KindName: t.KindName,
+		Match:    t.match,
+		Text:     t.Text(),
 		EOF:      t.EOF,
 		Invalid:  t.Invalid,
 	})
@@ -256,13 +255,13 @@ func (l *Lexer) nextAndTranMode() (*Token, error) {
 		return tok, nil
 	}
 	spec := l.clspec.Specs[l.mode()]
-	if spec.Pop[tok.ID] == 1 {
+	if spec.Pop[tok.Kind] == 1 {
 		err := l.popMode()
 		if err != nil {
 			return nil, err
 		}
 	}
-	mode := spec.Push[tok.ID]
+	mode := spec.Push[tok.Kind]
 	if !mode.IsNil() {
 		l.pushMode(mode)
 	}
