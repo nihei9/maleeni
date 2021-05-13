@@ -29,7 +29,7 @@ func init() {
 	}
 	compileFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
 	compileFlags.lexSpec = cmd.Flags().StringP("lex-spec", "l", "", "lexical specification file path (default stdin)")
-	compileFlags.compLv = cmd.Flags().IntP("compression-level", "c", compiler.CompressionLevelMax, "compression level")
+	compileFlags.compLv = cmd.Flags().Int("compression-level", compiler.CompressionLevelMax, "compression level")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	rootCmd.AddCommand(cmd)
 }
