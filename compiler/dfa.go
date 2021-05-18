@@ -16,7 +16,9 @@ type DFA struct {
 func genDFA(root astNode, symTab *symbolTable) *DFA {
 	initialState := root.first()
 	initialStateHash := initialState.hash()
-	stateMap := map[string]*symbolPositionSet{}
+	stateMap := map[string]*symbolPositionSet{
+		initialStateHash: initialState,
+	}
 	tranTab := map[string][256]string{}
 	{
 		follow := genFollowTable(root)
@@ -104,6 +106,8 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 func genTransitionTable(dfa *DFA) (*spec.TransitionTable, error) {
 	state2Num := map[string]int{}
 	for i, s := range dfa.States {
+		// Since 0 represents an invalid value in a transition table,
+		// assign a number greater than or equal to 1 to states.
 		state2Num[s] = i + 1
 	}
 
