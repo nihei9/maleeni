@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"testing"
@@ -23,9 +22,10 @@ func endPos(n uint16) symbolPosition {
 	return pos
 }
 
-func TestParser_parse(t *testing.T) {
+func TestParse(t *testing.T) {
 	tests := []struct {
 		pattern     string
+		fragments   map[string]string
 		ast         astNode
 		syntaxError *SyntaxError
 
@@ -90,6 +90,24 @@ func TestParser_parse(t *testing.T) {
 		{
 			pattern:     "\\p{Letter}?",
 			skipTestAST: true,
+		},
+		{
+			pattern: "\\f{a2c}?",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			ast: genConcatNode(
+				newOptionNode(
+					newFragmentNode("a2c",
+						genConcatNode(
+							newSymbolNodeWithPos(byte('a'), symPos(1)),
+							newSymbolNodeWithPos(byte('b'), symPos(2)),
+							newSymbolNodeWithPos(byte('c'), symPos(3)),
+						),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
 		},
 		{
 			pattern: "(a)?",
@@ -198,6 +216,24 @@ func TestParser_parse(t *testing.T) {
 			skipTestAST: true,
 		},
 		{
+			pattern: "\\f{a2c}*",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			ast: genConcatNode(
+				newRepeatNode(
+					newFragmentNode("a2c",
+						genConcatNode(
+							newSymbolNodeWithPos(byte('a'), symPos(1)),
+							newSymbolNodeWithPos(byte('b'), symPos(2)),
+							newSymbolNodeWithPos(byte('c'), symPos(3)),
+						),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
 			pattern: "((a*)*)*",
 			ast: genConcatNode(
 				newRepeatNode(
@@ -304,6 +340,31 @@ func TestParser_parse(t *testing.T) {
 		{
 			pattern:     "\\p{Letter}+",
 			skipTestAST: true,
+		},
+		{
+			pattern: "\\f{a2c}+",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			ast: genConcatNode(
+				newFragmentNode("a2c",
+					genConcatNode(
+						newSymbolNodeWithPos(byte('a'), symPos(1)),
+						newSymbolNodeWithPos(byte('b'), symPos(2)),
+						newSymbolNodeWithPos(byte('c'), symPos(3)),
+					),
+				),
+				newRepeatNode(
+					newFragmentNode("a2c",
+						genConcatNode(
+							newSymbolNodeWithPos(byte('a'), symPos(4)),
+							newSymbolNodeWithPos(byte('b'), symPos(5)),
+							newSymbolNodeWithPos(byte('c'), symPos(6)),
+						),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(7)),
+			),
 		},
 		{
 			pattern: "((a+)+)+",
@@ -917,6 +978,53 @@ func TestParser_parse(t *testing.T) {
 			syntaxError: synErrCharPropExpInvalidForm,
 		},
 		{
+			pattern: "\\f{a2c}",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			ast: genConcatNode(
+				newFragmentNode("a2c",
+					genConcatNode(
+						newSymbolNodeWithPos(byte('a'), symPos(1)),
+						newSymbolNodeWithPos(byte('b'), symPos(2)),
+						newSymbolNodeWithPos(byte('c'), symPos(3)),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
+			pattern: "\\f{ a2c }",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			ast: genConcatNode(
+				newFragmentNode("a2c",
+					genConcatNode(
+						newSymbolNodeWithPos(byte('a'), symPos(1)),
+						newSymbolNodeWithPos(byte('b'), symPos(2)),
+						newSymbolNodeWithPos(byte('c'), symPos(3)),
+					),
+				),
+				newEndMarkerNodeWithPos(1, endPos(4)),
+			),
+		},
+		{
+			pattern:     "\\f",
+			syntaxError: synErrFragmentExpInvalidForm,
+		},
+		{
+			pattern:     "\\f{",
+			syntaxError: synErrFragmentExpInvalidForm,
+		},
+		{
+			pattern: "\\f{a2c",
+			fragments: map[string]string{
+				"a2c": "abc",
+			},
+			syntaxError: synErrFragmentExpInvalidForm,
+		},
+		{
 			pattern: "(a)",
 			ast: newConcatNode(
 				newSymbolNodeWithPos(byte('a'), symPos(1)),
@@ -1085,16 +1193,26 @@ func TestParser_parse(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v %v", i, tt.pattern), func(t *testing.T) {
-			p := newParser(1, symbolPositionMin, bytes.NewReader([]byte(tt.pattern)))
-			ast, err := p.parse()
+			fragments := map[string][]byte{}
+			for kind, pattern := range tt.fragments {
+				fragments[kind] = []byte(pattern)
+			}
+			ast, _, err := parse(map[int][]byte{
+				1: []byte(tt.pattern),
+			}, fragments)
 			if tt.syntaxError != nil {
 				// printAST(os.Stdout, ast, "", "", false)
 				if err == nil {
 					t.Fatalf("expected syntax error; got: nil")
 				}
-				synErr, ok := err.(*SyntaxError)
+				parseErrs, ok := err.(*ParseErrors)
 				if !ok {
-					t.Fatalf("expected SyntaxError; got: %v (type: %T)", err, err)
+					t.Fatalf("expected ParseErrors; got: %v (type: %T)", err, err)
+				}
+				parseErr := parseErrs.Errors[0].Cause
+				synErr, ok := parseErr.(*SyntaxError)
+				if !ok {
+					t.Fatalf("expected SyntaxError; got: %v (type: %T)", parseErr, parseErr)
 				}
 				if synErr != tt.syntaxError {
 					t.Fatalf("unexpected syntax error; want: %v, got: %v", tt.syntaxError, synErr)
@@ -1118,10 +1236,10 @@ func TestParser_parse(t *testing.T) {
 	}
 }
 
-func TestParse(t *testing.T) {
+func TestParse_FollowAndSymbolTable(t *testing.T) {
 	root, symTab, err := parse(map[int][]byte{
 		1: []byte("(a|b)*abb"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

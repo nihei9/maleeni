@@ -24,19 +24,22 @@ const (
 	tokenKindCharRange       = tokenKind("-")
 	tokenKindCodePointLeader = tokenKind("\\u")
 	tokenKindCharPropLeader  = tokenKind("\\p")
+	tokenKindFragmentLeader  = tokenKind("\\f")
 	tokenKindLBrace          = tokenKind("{")
 	tokenKindRBrace          = tokenKind("}")
 	tokenKindEqual           = tokenKind("=")
 	tokenKindCodePoint       = tokenKind("code point")
 	tokenKindCharPropSymbol  = tokenKind("character property symbol")
+	tokenKindFragmentSymbol  = tokenKind("fragment symbol")
 	tokenKindEOF             = tokenKind("eof")
 )
 
 type token struct {
-	kind       tokenKind
-	char       rune
-	propSymbol string
-	codePoint  string
+	kind           tokenKind
+	char           rune
+	propSymbol     string
+	codePoint      string
+	fragmentSymbol string
 }
 
 const nullChar = '\u0000'
@@ -62,6 +65,13 @@ func newCharPropSymbolToken(propSymbol string) *token {
 	}
 }
 
+func newFragmentSymbolToken(fragmentSymbol string) *token {
+	return &token{
+		kind:           tokenKindFragmentSymbol,
+		fragmentSymbol: fragmentSymbol,
+	}
+}
+
 type lexerMode string
 
 const (
@@ -69,6 +79,7 @@ const (
 	lexerModeBExp        = lexerMode("bracket expression")
 	lexerModeCPExp       = lexerMode("code point expression")
 	lexerModeCharPropExp = lexerMode("character property expression")
+	lexerModeFragmentExp = lexerMode("fragment expression")
 )
 
 type lexerModeStack struct {
@@ -197,6 +208,16 @@ func (l *lexer) next() (*token, error) {
 			l.modeStack.pop()
 		}
 		return tok, nil
+	case lexerModeFragmentExp:
+		tok, err := l.nextInFragment(c)
+		if err != nil {
+			return nil, err
+		}
+		switch tok.kind {
+		case tokenKindRBrace:
+			l.modeStack.pop()
+		}
+		return tok, nil
 	default:
 		tok, err := l.nextInDefault(c)
 		if err != nil {
@@ -213,6 +234,8 @@ func (l *lexer) next() (*token, error) {
 			l.modeStack.push(lexerModeCPExp)
 		case tokenKindCharPropLeader:
 			l.modeStack.push(lexerModeCharPropExp)
+		case tokenKindFragmentLeader:
+			l.modeStack.push(lexerModeFragmentExp)
 		}
 		return tok, nil
 	}
@@ -293,6 +316,9 @@ func (l *lexer) nextInDefault(c rune) (*token, error) {
 		}
 		if c == 'p' {
 			return newToken(tokenKindCharPropLeader, nullChar), nil
+		}
+		if c == 'f' {
+			return newToken(tokenKindFragmentLeader, nullChar), nil
 		}
 		if c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '|' || c == '(' || c == ')' || c == '[' || c == ']' {
 			return newToken(tokenKindChar, c), nil
@@ -452,6 +478,46 @@ func (l *lexer) nextInCharProp(c rune) (*token, error) {
 			raiseSyntaxError(synErrCharPropInvalidSymbol)
 		}
 		return newCharPropSymbolToken(sym), nil
+	}
+}
+
+func (l *lexer) nextInFragment(c rune) (*token, error) {
+	switch c {
+	case '{':
+		return newToken(tokenKindLBrace, nullChar), nil
+	case '}':
+		return newToken(tokenKindRBrace, nullChar), nil
+	default:
+		var b strings.Builder
+		fmt.Fprint(&b, string(c))
+		n := 1
+		for {
+			c, eof, err := l.read()
+			if err != nil {
+				return nil, err
+			}
+			if eof {
+				l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			if c == '}' {
+				err := l.restore()
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			fmt.Fprint(&b, string(c))
+			n++
+		}
+		sym := strings.TrimSpace(b.String())
+		if len(sym) == 0 {
+			raiseSyntaxError(SynErrFragmentInvalidSymbol)
+		}
+		return newFragmentSymbolToken(sym), nil
 	}
 }
 

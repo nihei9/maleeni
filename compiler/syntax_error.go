@@ -22,6 +22,7 @@ var (
 	synErrInvalidEscSeq         = newSyntaxError("invalid escape sequence")
 	synErrInvalidCodePoint      = newSyntaxError("code points must consist of just 4 or 6 hex digits")
 	synErrCharPropInvalidSymbol = newSyntaxError("invalid character property symbol")
+	SynErrFragmentInvalidSymbol = newSyntaxError("invalid fragment symbol")
 
 	// syntax errors
 	synErrUnexpectedToken        = newSyntaxError("unexpected token")
@@ -40,4 +41,5 @@ var (
 	synErrCPExpOutOfRange        = newSyntaxError("a code point must be between U+0000 to U+10FFFF")
 	synErrCharPropExpInvalidForm = newSyntaxError("invalid character property expression")
 	synErrCharPropUnsupported    = newSyntaxError("unsupported character property")
+	synErrFragmentExpInvalidForm = newSyntaxError("invalid fragment expression")
 )

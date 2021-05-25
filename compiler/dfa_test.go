@@ -7,7 +7,7 @@ import (
 func TestGenDFA(t *testing.T) {
 	root, symTab, err := parse(map[int][]byte{
 		1: []byte("(a|b)*abb"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

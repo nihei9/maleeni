@@ -445,6 +445,34 @@ func TestLexer(t *testing.T) {
 				newToken(tokenKindEOF, nullChar),
 			},
 		},
+		{
+			caption: "lexer can recognize the special characters and symbols in fragment expression mode",
+			src:     "\\f{integer}",
+			tokens: []*token{
+				newToken(tokenKindFragmentLeader, nullChar),
+				newToken(tokenKindLBrace, nullChar),
+				newFragmentSymbolToken("integer"),
+				newToken(tokenKindRBrace, nullChar),
+
+				newToken(tokenKindEOF, nullChar),
+			},
+		},
+		{
+			caption: "a fragment expression is not supported in a bracket expression",
+			src:     "[\\f",
+			tokens: []*token{
+				newToken(tokenKindBExpOpen, nullChar),
+			},
+			err: synErrInvalidEscSeq,
+		},
+		{
+			caption: "a fragment expression is not supported in an inverse bracket expression",
+			src:     "[^\\f",
+			tokens: []*token{
+				newToken(tokenKindInverseBExpOpen, nullChar),
+			},
+			err: synErrInvalidEscSeq,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.caption, func(t *testing.T) {

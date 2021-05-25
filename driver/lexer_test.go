@@ -34,6 +34,14 @@ func newLexEntryDefaultNOP(kind string, pattern string) *spec.LexEntry {
 	}
 }
 
+func newLexEntryFragment(kind string, pattern string) *spec.LexEntry {
+	return &spec.LexEntry{
+		Kind:     spec.LexKind(kind),
+		Pattern:  spec.LexPattern(pattern),
+		Fragment: true,
+	}
+}
+
 func newTokenDefault(id int, kind string, match byteSequence) *Token {
 	return newToken(spec.LexModeNumDefault, spec.LexModeNameDefault, id, kind, match)
 }
@@ -471,6 +479,50 @@ func TestLexer_Next(t *testing.T) {
 				newTokenDefault(1, "codePointsAlt", newByteSequence([]byte{0xCE, 0xBD})),
 				newTokenDefault(1, "codePointsAlt", newByteSequence([]byte{0xE3, 0x81, 0xAB})),
 				newTokenDefault(1, "codePointsAlt", newByteSequence([]byte{0xF0, 0x9F, 0x98, 0xB8})),
+				newEOFTokenDefault(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("t1", "\\f{a2c}\\f{d2f}+"),
+					newLexEntryFragment("a2c", "abc"),
+					newLexEntryFragment("d2f", "def"),
+				},
+			},
+			src: "abcdefdefabcdef",
+			tokens: []*Token{
+				newTokenDefault(1, "t1", newByteSequence([]byte("abcdefdef"))),
+				newTokenDefault(1, "t1", newByteSequence([]byte("abcdef"))),
+				newEOFTokenDefault(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("t1", "(\\f{a2c}|\\f{d2f})+"),
+					newLexEntryFragment("a2c", "abc"),
+					newLexEntryFragment("d2f", "def"),
+				},
+			},
+			src: "abcdefdefabc",
+			tokens: []*Token{
+				newTokenDefault(1, "t1", newByteSequence([]byte("abcdefdefabc"))),
+				newEOFTokenDefault(),
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("t1", "\\f{a2c_or_d2f}+"),
+					newLexEntryFragment("a2c_or_d2f", "\\f{a2c}|\\f{d2f}"),
+					newLexEntryFragment("a2c", "abc"),
+					newLexEntryFragment("d2f", "def"),
+				},
+			},
+			src: "abcdefdefabc",
+			tokens: []*Token{
+				newTokenDefault(1, "t1", newByteSequence([]byte("abcdefdefabc"))),
 				newEOFTokenDefault(),
 			},
 		},

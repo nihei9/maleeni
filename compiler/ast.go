@@ -19,6 +19,7 @@ var (
 	_ astNode = &concatNode{}
 	_ astNode = &altNode{}
 	_ astNode = &optionNode{}
+	_ astNode = &fragmentNode{}
 )
 
 type symbolNode struct {
@@ -306,6 +307,38 @@ func (n *optionNode) last() *symbolPositionSet {
 	return n.lastMemo
 }
 
+type fragmentNode struct {
+	symbol string
+	left   astNode
+}
+
+func newFragmentNode(symbol string, ast astNode) *fragmentNode {
+	return &fragmentNode{
+		symbol: symbol,
+		left:   ast,
+	}
+}
+
+func (n *fragmentNode) String() string {
+	return fmt.Sprintf("{type: fragment, symbol: %v}", n.symbol)
+}
+
+func (n *fragmentNode) children() (astNode, astNode) {
+	return n.left, nil
+}
+
+func (n *fragmentNode) nullable() bool {
+	return n.left.nullable()
+}
+
+func (n *fragmentNode) first() *symbolPositionSet {
+	return n.left.first()
+}
+
+func (n *fragmentNode) last() *symbolPositionSet {
+	return n.left.last()
+}
+
 func copyAST(src astNode) astNode {
 	switch n := src.(type) {
 	case *symbolNode:
@@ -320,6 +353,11 @@ func copyAST(src astNode) astNode {
 		return newRepeatNode(copyAST(n.left))
 	case *optionNode:
 		return newOptionNode(copyAST(n.left))
+	case *fragmentNode:
+		if n.left == nil {
+			return newFragmentNode(n.symbol, nil)
+		}
+		return newFragmentNode(n.symbol, copyAST(n.left))
 	}
 	panic(fmt.Errorf("copyAST cannot handle %T type; AST: %v", src, src))
 }

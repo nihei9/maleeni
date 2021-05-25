@@ -76,62 +76,173 @@ func genSymTab(symTab *symbolTable, node astNode) *symbolTable {
 	return symTab
 }
 
-func parse(regexps map[int][]byte) (astNode, *symbolTable, error) {
+func parse(regexps map[int][]byte, fragments map[string][]byte) (astNode, *symbolTable, error) {
 	if len(regexps) == 0 {
 		return nil, nil, fmt.Errorf("parse() needs at least one token entry")
 	}
-	symPos := symbolPositionMin
-	var root astNode
-	var perrs []*ParseError
-	for id, pattern := range regexps {
-		p := newParser(id, symPos, bytes.NewReader(pattern))
-		ast, err := p.parse()
-		if err != nil {
-			perr := &ParseError{
-				ID:      id,
-				Pattern: pattern,
-				Cause:   err,
-				Details: p.errMsgDetails,
-			}
-			if p.errMsgDetails != "" {
-				perr.Details = p.errMsgDetails
-			}
-			perrs = append(perrs, perr)
-			continue
-		}
-		if root == nil {
-			root = ast
-		} else {
-			root = newAltNode(root, ast)
-		}
-		symPos = p.symPos
+
+	fragmentASTs, err := parseFragments(fragments)
+	if err != nil {
+		return nil, nil, err
 	}
-	if len(perrs) > 0 {
-		return nil, nil, &ParseErrors{
-			Errors: perrs,
-		}
+	if fragmentASTs == nil {
+		fragmentASTs = map[string]astNode{}
+	}
+
+	root, err := parseRegexp(regexps, fragmentASTs)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return root, genSymbolTable(root), nil
 }
 
+type incompleteFragment struct {
+	kind string
+	ast  astNode
+}
+
+func parseFragments(fragments map[string][]byte) (map[string]astNode, error) {
+	if len(fragments) == 0 {
+		return nil, nil
+	}
+	fragmentASTs := map[string]astNode{}
+	incompleteFragments := []*incompleteFragment{}
+	var perrs []*ParseError
+	for kind, pattern := range fragments {
+		p := newParser(bytes.NewReader(pattern))
+		ast, err := p.parse()
+		if err != nil {
+			perrs = append(perrs, &ParseError{
+				Pattern: pattern,
+				Cause:   err,
+				Details: p.errMsgDetails,
+			})
+			continue
+		}
+		if p.incomplete {
+			incompleteFragments = append(incompleteFragments, &incompleteFragment{
+				kind: kind,
+				ast:  ast,
+			})
+		} else {
+			fragmentASTs[kind] = ast
+		}
+	}
+	for len(incompleteFragments) > 0 {
+		lastIncompCount := len(incompleteFragments)
+		remainingFragments := []*incompleteFragment{}
+		for _, e := range incompleteFragments {
+			remains := applyFragments(e.ast, fragmentASTs)
+			if len(remains) > 0 {
+				remainingFragments = append(remainingFragments, e)
+			} else {
+				fragmentASTs[e.kind] = e.ast
+			}
+		}
+		incompleteFragments = remainingFragments
+		if len(incompleteFragments) == lastIncompCount {
+			for _, e := range incompleteFragments {
+				perrs = append(perrs, &ParseError{
+					Cause: fmt.Errorf("%v has an undefined fragment or a cycle", e.kind),
+				})
+			}
+			break
+		}
+	}
+	if len(perrs) > 0 {
+		return nil, &ParseErrors{
+			Errors: perrs,
+		}
+	}
+
+	return fragmentASTs, nil
+}
+
+func parseRegexp(regexps map[int][]byte, fragmentASTs map[string]astNode) (astNode, error) {
+	symPos := symbolPositionMin
+	var root astNode
+	var perrs []*ParseError
+	for id, pattern := range regexps {
+		p := newParser(bytes.NewReader(pattern))
+		ast, err := p.parse()
+		if err != nil {
+			perrs = append(perrs, &ParseError{
+				ID:      id,
+				Pattern: pattern,
+				Cause:   err,
+				Details: p.errMsgDetails,
+			})
+			continue
+		}
+		remains := applyFragments(ast, fragmentASTs)
+		if len(remains) > 0 {
+			perrs = append(perrs, &ParseError{
+				ID:      id,
+				Pattern: pattern,
+				Cause:   fmt.Errorf("undefined fragment: %+v", remains),
+			})
+			continue
+		}
+		ast = newConcatNode(ast, newEndMarkerNode(id))
+		symPos, err = positionSymbols(ast, symPos)
+		if err != nil {
+			perrs = append(perrs, &ParseError{
+				ID:      id,
+				Pattern: pattern,
+				Cause:   err,
+				Details: p.errMsgDetails,
+			})
+			continue
+		}
+		root = genAltNode(root, ast)
+	}
+	if len(perrs) > 0 {
+		return nil, &ParseErrors{
+			Errors: perrs,
+		}
+	}
+
+	return root, nil
+}
+
+func applyFragments(ast astNode, fragments map[string]astNode) []string {
+	if ast == nil {
+		return nil
+	}
+	n, ok := ast.(*fragmentNode)
+	if !ok {
+		var remains []string
+		left, right := ast.children()
+		r := applyFragments(left, fragments)
+		if len(r) > 0 {
+			remains = append(remains, r...)
+		}
+		r = applyFragments(right, fragments)
+		if len(r) > 0 {
+			remains = append(remains, r...)
+		}
+		return remains
+	}
+	f, ok := fragments[n.symbol]
+	if !ok {
+		return []string{n.symbol}
+	}
+	n.left = copyAST(f)
+	return nil
+}
+
 type parser struct {
-	id            int
 	lex           *lexer
 	peekedTok     *token
 	lastTok       *token
+	incomplete    bool
 	errMsgDetails string
-	symPos        uint16
 }
 
-func newParser(id int, initialSymPos uint16, src io.Reader) *parser {
+func newParser(src io.Reader) *parser {
 	return &parser{
-		id:            id,
-		lex:           newLexer(src),
-		peekedTok:     nil,
-		lastTok:       nil,
-		errMsgDetails: "",
-		symPos:        initialSymPos,
+		lex: newLexer(src),
 	}
 }
 
@@ -152,10 +263,7 @@ func (p *parser) parse() (ast astNode, retErr error) {
 	if err != nil {
 		return nil, err
 	}
-	p.symPos, err = positionSymbols(ast, p.symPos)
-	if err != nil {
-		return nil, err
-	}
+
 	return ast, nil
 }
 
@@ -171,7 +279,7 @@ func (p *parser) parseRegexp() (astNode, error) {
 		raiseSyntaxError(synErrGroupNoInitiator)
 	}
 	p.expect(tokenKindEOF)
-	return newConcatNode(alt, newEndMarkerNode(p.id)), nil
+	return alt, nil
 }
 
 func (p *parser) parseAlt() astNode {
@@ -315,6 +423,9 @@ func (p *parser) parseSingleChar() astNode {
 	if p.consume(tokenKindCharPropLeader) {
 		return p.parseCharProp()
 	}
+	if p.consume(tokenKindFragmentLeader) {
+		return p.parseFragment()
+	}
 	c := p.parseNormalChar()
 	if c == nil {
 		if p.consume(tokenKindBExpClose) {
@@ -444,6 +555,24 @@ func (p *parser) parseCharProp() astNode {
 	}
 
 	return alt
+}
+
+func (p *parser) parseFragment() astNode {
+	if !p.consume(tokenKindLBrace) {
+		raiseSyntaxError(synErrFragmentExpInvalidForm)
+	}
+	if !p.consume(tokenKindFragmentSymbol) {
+		raiseSyntaxError(synErrFragmentExpInvalidForm)
+	}
+	sym := p.lastTok.fragmentSymbol
+
+	if !p.consume(tokenKindRBrace) {
+		raiseSyntaxError(synErrFragmentExpInvalidForm)
+	}
+
+	p.incomplete = true
+
+	return newFragmentNode(sym, nil)
 }
 
 func (p *parser) parseNormalChar() astNode {

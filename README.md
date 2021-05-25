@@ -113,13 +113,14 @@ top level object:
 
 entry object:
 
-| Field   | Type             | Nullable | Description                                                                                   |
-|---------|------------------|----------|-----------------------------------------------------------------------------------------------|
-| kind    | string           | false    | A name of a token kind                                                                        |
-| pattern | string           | false    | A pattern in a regular expression                                                             |
-| modes   | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                   |
-| push    | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears |
-| pop     | bool             | true     | When `pop` is true, the lexer pops a mode from own mode stack.                                |
+| Field    | Type             | Nullable | Description                                                                                   |
+|----------|------------------|----------|-----------------------------------------------------------------------------------------------|
+| kind     | string           | false    | A name of a token kind                                                                        |
+| pattern  | string           | false    | A pattern in a regular expression                                                             |
+| modes    | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                   |
+| push     | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears |
+| pop      | bool             | true     | When `pop` is `true`, the lexer pops a mode from own mode stack.                              |
+| fragment | bool             | true     | When `fragment` is `true`, its entry is a fragment.                                           |
 
 See [Regular Expression Syntax](#regular-expression-syntax) for more details on the regular expression syntax.
 
@@ -197,6 +198,40 @@ The repetitions match a string that repeats the previous single character or gro
 |-----------|--------------------------------------------------------|
 | a(bc)*d   | matches 'ad', 'abcd', 'abcbcd', and so on              |
 | (ab\|cd)+ | matches 'ab', 'cd', 'abcd', 'cdab', abcdab', and so on |
+
+### Fragment
+
+The fragment is a feature that allows you to define a part of a pattern. This feature is useful for decomposing complex patterns into simple patterns and for defining common parts between patterns.
+A fragment entry is defined by an entry whose `fragment` field is `true`, and is referenced by a fragment expression (`\f{...}`).
+Fragment patterns can be nested, but they are not allowed to contain circular references.
+
+For instance, you can define [an identifier of golang](https://golang.org/ref/spec#Identifiers) as follows:
+
+```json
+{
+    "entries": [
+        {
+            "fragment": true,
+            "kind": "unicode_letter",
+            "pattern": "\\p{Letter}"
+        },
+        {
+            "fragment": true,
+            "kind": "unicode_digit",
+            "pattern": "\\p{Number}"
+        },
+        {
+            "fragment": true,
+            "kind": "letter",
+            "pattern": "\\f{unicode_letter}|_"
+        },
+        {
+            "kind": "identifier",
+            "pattern": "\\f{letter}(\\f{letter}|\\f{unicode_digit})*"
+        }
+    ]
+}
+```
 
 ## Lex Mode
 

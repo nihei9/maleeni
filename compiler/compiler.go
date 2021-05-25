@@ -54,7 +54,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 		}
 	}
 
-	modeEntries, modes, modeNums := groupEntriesByLexMode(lexspec.Entries)
+	modeEntries, modes, modeNums, fragmetns := groupEntriesByLexMode(lexspec.Entries)
 
 	modeSpecs := []*spec.CompiledLexModeSpec{
 		nil,
@@ -62,7 +62,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	for i, es := range modeEntries[1:] {
 		modeName := modes[i+1]
 		config.logger.Log("Compile %v mode:", modeName)
-		modeSpec, err := compile(es, modeNums, config)
+		modeSpec, err := compile(es, modeNums, fragmetns, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile in %v mode: %w", modeName, err)
 		}
@@ -77,7 +77,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}, nil
 }
 
-func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeNum) {
+func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeNum, map[string]*spec.LexEntry) {
 	modes := []spec.LexModeName{
 		spec.LexModeNameNil,
 		spec.LexModeNameDefault,
@@ -89,9 +89,14 @@ func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec
 	lastModeNum := spec.LexModeNumDefault
 	modeEntries := [][]*spec.LexEntry{
 		nil,
-		[]*spec.LexEntry{},
+		{},
 	}
+	fragments := map[string]*spec.LexEntry{}
 	for _, e := range entries {
+		if e.Fragment {
+			fragments[e.Kind.String()] = e
+			continue
+		}
 		ms := e.Modes
 		if len(ms) == 0 {
 			ms = []spec.LexModeName{
@@ -110,10 +115,10 @@ func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec
 			modeEntries[num] = append(modeEntries[num], e)
 		}
 	}
-	return modeEntries, modes, modeNums
+	return modeEntries, modes, modeNums, fragments
 }
 
-func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexModeNum, config *compilerConfig) (*spec.CompiledLexModeSpec, error) {
+func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexModeNum, fragments map[string]*spec.LexEntry, config *compilerConfig) (*spec.CompiledLexModeSpec, error) {
 	var kinds []spec.LexKind
 	var patterns map[int][]byte
 	{
@@ -149,11 +154,16 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 		pop = append(pop, popV)
 	}
 
+	fragmentPatterns := map[string][]byte{}
+	for k, e := range fragments {
+		fragmentPatterns[k] = []byte(e.Pattern)
+	}
+
 	var root astNode
 	var symTab *symbolTable
 	{
 		var err error
-		root, symTab, err = parse(patterns)
+		root, symTab, err = parse(patterns, fragmentPatterns)
 		if err != nil {
 			return nil, err
 		}

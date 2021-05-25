@@ -88,11 +88,12 @@ func (n LexModeNum) IsNil() bool {
 }
 
 type LexEntry struct {
-	Kind    LexKind       `json:"kind"`
-	Pattern LexPattern    `json:"pattern"`
-	Modes   []LexModeName `json:"modes"`
-	Push    LexModeName   `json:"push"`
-	Pop     bool          `json:"pop"`
+	Kind     LexKind       `json:"kind"`
+	Pattern  LexPattern    `json:"pattern"`
+	Modes    []LexModeName `json:"modes"`
+	Push     LexModeName   `json:"push"`
+	Pop      bool          `json:"pop"`
+	Fragment bool          `json:"fragment"`
 }
 
 func (e *LexEntry) validate() error {
