@@ -101,6 +101,10 @@ for {
 }
 ```
 
+## More Practical Usage
+
+See also [this example](example/README.md).
+
 ## Lexical Specification Format
 
 The lexical specification format to be passed to `maleeni compile` command is as follows:

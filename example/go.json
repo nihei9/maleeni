@@ -1,0 +1,596 @@
+{
+	"entries": [
+		{
+			"kind": "line_comment_open",
+			"pattern": "//",
+			"push": "line_comment"
+		},
+		{
+			"modes": ["line_comment"],
+			"kind": "line_comment_text",
+			"pattern": "[^\\u{000A}]+"
+		},
+		{
+			"modes": ["line_comment"],
+			"kind": "line_comment_close",
+			"pattern": "\\u{000A}",
+			"pop": true
+		},
+		{
+			"kind": "general_comment_open",
+			"pattern": "/\\*",
+			"push": "general_comment"
+		},
+		{
+			"modes": ["general_comment"],
+			"kind": "general_comment_text",
+			"pattern": "[^*]+"
+		},
+		{
+			"modes": ["general_comment"],
+			"kind": "general_comment_close",
+			"pattern": "\\*/",
+			"pop": true
+		},
+		{
+			"modes": ["general_comment"],
+			"kind": "general_comment_special_char",
+			"pattern": "\\*"
+		},
+		{
+			"kind": "white_space",
+			"pattern": "[\\u{0009}\\u{000A}\\u{000D}\\u{0020}]+"
+		},
+		{
+			"kind": "decimal_literal",
+			"pattern": "\\f{decimal_literal}"
+		},
+		{
+			"kind": "binary_literal",
+			"pattern": "\\f{binary_literal}"
+		},
+		{
+			"kind": "octal_literal",
+			"pattern": "\\f{octal_literal}"
+		},
+		{
+			"kind": "hex_literal",
+			"pattern": "\\f{hex_literal}"
+		},
+		{
+			"fragment": true,
+			"kind": "decimal_literal",
+			"pattern": "0|[1-9](_?\\f{decimal_digits})?"
+		},
+		{
+			"fragment": true,
+			"kind": "binary_literal",
+			"pattern": "0[bB]_?\\f{binary_digits}"
+		},
+		{
+			"fragment": true,
+			"kind": "octal_literal",
+			"pattern": "0[oO]_?\\f{octal_digits}"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_literal",
+			"pattern": "0[xX]_?\\f{hex_digits}"
+		},
+		{
+			"kind": "decimal_float_literal",
+			"pattern": "\\f{decimal_float_literal}"
+		},
+		{
+			"kind": "hex_float_literal",
+			"pattern": "\\f{hex_float_literal}"
+		},
+		{
+			"fragment": true,
+			"kind": "decimal_float_literal",
+			"pattern": "\\f{decimal_digits}\\.\\f{decimal_digits}?\\f{decimal_exponent}?|\\f{decimal_digits}\\f{decimal_exponent}|\\.\\f{decimal_digits}\\f{decimal_exponent}?"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_float_literal",
+			"pattern": "0[xX]\\f{hex_mentissa}\\f{hex_exponent}"
+		},
+		{
+			"kind": "imaginary_decimal_literal",
+			"pattern": "(\\f{decimal_digits}|\\f{decimal_literal})i"
+		},
+		{
+			"kind": "imaginary_binary_literal",
+			"pattern": "\\f{binary_literal}i"
+		},
+		{
+			"kind": "imaginary_octal_literal",
+			"pattern": "\\f{octal_literal}i"
+		},
+		{
+			"kind": "imaginary_hex_literal",
+			"pattern": "\\f{hex_literal}i"
+		},
+		{
+			"kind": "imaginary_decimal_float_literal",
+			"pattern": "\\f{decimal_float_literal}i"
+		},
+		{
+			"kind": "imaginary_hex_float_literal",
+			"pattern": "\\f{hex_float_literal}i"
+		},
+		{
+			"kind": "rune_literal",
+			"pattern": "'(\\f{unicode_value}|\\f{byte_value})'"
+		},
+		{
+			"kind": "raw_string_open",
+			"pattern": "`",
+			"push": "raw_string"
+		},
+		{
+			"modes": ["raw_string"],
+			"kind": "raw_string_char_seq",
+			"pattern": "[^`]+"
+		},
+		{
+			"modes": ["raw_string"],
+			"kind": "raw_string_close",
+			"pattern": "`",
+			"pop": true
+		},
+		{
+			"kind": "interpreted_string_open",
+			"pattern": "\"",
+			"push": "interpreted_string"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_char_seq",
+			"pattern": "[^\\u{000A}\"\\\\]+"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_little_u_value",
+			"pattern": "\\f{little_u_value}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_big_u_value",
+			"pattern": "\\f{big_u_value}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_escaped_char",
+			"pattern": "\\f{escaped_char}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_octal_byte_value",
+			"pattern": "\\f{octal_byte_value}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_hex_byte_value",
+			"pattern": "\\f{hex_byte_value}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_escape_symbol",
+			"pattern": "\\\\"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_newline",
+			"pattern": "\\u{000A}"
+		},
+		{
+			"modes": ["interpreted_string"],
+			"kind": "interpreted_string_close",
+			"pattern": "\"",
+			"pop": true
+		},
+		{
+			"kind": "kw_break",
+			"pattern": "break"
+		},
+		{
+			"kind": "kw_case",
+			"pattern": "case"
+		},
+		{
+			"kind": "kw_chan",
+			"pattern": "chan"
+		},
+		{
+			"kind": "kw_const",
+			"pattern": "const"
+		},
+		{
+			"kind": "kw_continue",
+			"pattern": "continue"
+		},
+		{
+			"kind": "kw_default",
+			"pattern": "default"
+		},
+		{
+			"kind": "kw_defer",
+			"pattern": "defer"
+		},
+		{
+			"kind": "kw_else",
+			"pattern": "else"
+		},
+		{
+			"kind": "kw_fallthrough",
+			"pattern": "fallthrough"
+		},
+		{
+			"kind": "kw_for",
+			"pattern": "for"
+		},
+		{
+			"kind": "kw_func",
+			"pattern": "func"
+		},
+		{
+			"kind": "kw_go",
+			"pattern": "go"
+		},
+		{
+			"kind": "kw_goto",
+			"pattern": "goto"
+		},
+		{
+			"kind": "kw_if",
+			"pattern": "if"
+		},
+		{
+			"kind": "kw_import",
+			"pattern": "import"
+		},
+		{
+			"kind": "kw_interface",
+			"pattern": "interface"
+		},
+		{
+			"kind": "kw_map",
+			"pattern": "map"
+		},
+		{
+			"kind": "kw_package",
+			"pattern": "package"
+		},
+		{
+			"kind": "kw_range",
+			"pattern": "range"
+		},
+		{
+			"kind": "kw_return",
+			"pattern": "return"
+		},
+		{
+			"kind": "kw_select",
+			"pattern": "select"
+		},
+		{
+			"kind": "kw_struct",
+			"pattern": "struct"
+		},
+		{
+			"kind": "kw_switch",
+			"pattern": "switch"
+		},
+		{
+			"kind": "kw_type",
+			"pattern": "type"
+		},
+		{
+			"kind": "kw_var",
+			"pattern": "var"
+		},
+		{
+			"kind": "identifier",
+			"pattern": "\\f{letter}(\\f{letter}|\\f{unicode_digit})*"
+		},
+		{
+			"kind": "op_sum",
+			"pattern": "\\+"
+		},
+		{
+			"kind": "op_diff",
+			"pattern": "-"
+		},
+		{
+			"kind": "op_mul",
+			"pattern": "\\*"
+		},
+		{
+			"kind": "op_div",
+			"pattern": "/"
+		},
+		{
+			"kind": "op_rem",
+			"pattern": "%"
+		},
+		{
+			"kind": "op_bit_and",
+			"pattern": "&"
+		},
+		{
+			"kind": "op_bit_or",
+			"pattern": "\\|"
+		},
+		{
+			"kind": "op_bit_xor",
+			"pattern": "^"
+		},
+		{
+			"kind": "op_bit_clear",
+			"pattern": "&^"
+		},
+		{
+			"kind": "op_left_shift",
+			"pattern": "<<"
+		},
+		{
+			"kind": "op_right_shift",
+			"pattern": ">>"
+		},
+		{
+			"kind": "op_sum_assign",
+			"pattern": "\\+="
+		},
+		{
+			"kind": "op_diff_assign",
+			"pattern": "-="
+		},
+		{
+			"kind": "op_mull_assign",
+			"pattern": "\\*="
+		},
+		{
+			"kind": "op_div_assign",
+			"pattern": "/="
+		},
+		{
+			"kind": "op_rem_assign",
+			"pattern": "%="
+		},
+		{
+			"kind": "op_bit_and_assign",
+			"pattern": "&="
+		},
+		{
+			"kind": "op_bit_or_assign",
+			"pattern": "\\|="
+		},
+		{
+			"kind": "op_bit_xor_assign",
+			"pattern": "^="
+		},
+		{
+			"kind": "op_bit_clear_assign",
+			"pattern": "&^="
+		},
+		{
+			"kind": "op_left_shift_assign",
+			"pattern": "<<="
+		},
+		{
+			"kind": "op_right_shift_assign",
+			"pattern": ">>="
+		},
+		{
+			"kind": "op_and",
+			"pattern": "&&"
+		},
+		{
+			"kind": "op_or",
+			"pattern": "\\|\\|"
+		},
+		{
+			"kind": "op_dequeue",
+			"pattern": "<-"
+		},
+		{
+			"kind": "op_increment",
+			"pattern": "\\+\\+"
+		},
+		{
+			"kind": "op_decrement",
+			"pattern": "--"
+		},
+		{
+			"kind": "op_equal",
+			"pattern": "=="
+		},
+		{
+			"kind": "op_less",
+			"pattern": "<"
+		},
+		{
+			"kind": "op_greater",
+			"pattern": ">"
+		},
+		{
+			"kind": "op_asign",
+			"pattern": "="
+		},
+		{
+			"kind": "op_not",
+			"pattern": "!"
+		},
+		{
+			"kind": "op_not_equal",
+			"pattern": "!="
+		},
+		{
+			"kind": "op_less_equal",
+			"pattern": "<="
+		},
+		{
+			"kind": "op_greater_equal",
+			"pattern": ">="
+		},
+		{
+			"kind": "op_short_assign",
+			"pattern": ":="
+		},
+		{
+			"kind": "op_variadic",
+			"pattern": "\\.\\.\\."
+		},
+		{
+			"kind": "left_paren",
+			"pattern": "\\("
+		},
+		{
+			"kind": "right_paren",
+			"pattern": "\\)"
+		},
+		{
+			"kind": "left_bracket",
+			"pattern": "\\["
+		},
+		{
+			"kind": "right_bracket",
+			"pattern": "]"
+		},
+		{
+			"kind": "left_brace",
+			"pattern": "{"
+		},
+		{
+			"kind": "right_brace",
+			"pattern": "}"
+		},
+		{
+			"kind": "comma",
+			"pattern": ","
+		},
+		{
+			"kind": "dot",
+			"pattern": "\\."
+		},
+		{
+			"kind": "semi_colon",
+			"pattern": ";"
+		},
+		{
+			"kind": "op_colon",
+			"pattern": ":"
+		},
+		{
+			"fragment": true,
+			"kind": "unicode_char",
+			"pattern": "[^\\u{000A}]"
+		},
+		{
+			"fragment": true,
+			"kind": "unicode_letter",
+			"pattern": "\\p{Letter}"
+		},
+		{
+			"fragment": true,
+			"kind": "unicode_digit",
+			"pattern": "\\p{Number}"
+		},
+		{
+			"fragment": true,
+			"kind": "letter",
+			"pattern": "\\f{unicode_letter}|_"
+		},
+		{
+			"fragment": true,
+			"kind": "decimal_exponent",
+			"pattern": "[eE][+-]?\\f{decimal_digits}"
+		},
+		{
+			"fragment": true,
+			"kind": "decimal_digits",
+			"pattern": "\\f{decimal_digit}(_?\\f{decimal_digit})*"
+		},
+		{
+			"fragment": true,
+			"kind": "binary_digits",
+			"pattern": "\\f{binary_digit}(_?\\f{binary_digit})*"
+		},
+		{
+			"fragment": true,
+			"kind": "octal_digits",
+			"pattern": "\\f{octal_digit}(_?\\f{octal_digit})*"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_mentissa",
+			"pattern": "_?\\f{hex_digits}(\\.\\f{hex_digits}?)?|\\.\\f{hex_digits}"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_exponent",
+			"pattern": "[pP][+-]?\\f{decimal_digits}"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_digits",
+			"pattern": "\\f{hex_digit}(_?\\f{hex_digit})*"
+		},
+		{
+			"fragment": true,
+			"kind": "decimal_digit",
+			"pattern": "[0-9]"
+		},
+		{
+			"fragment": true,
+			"kind": "binary_digit",
+			"pattern": "[01]"
+		},
+		{
+			"fragment": true,
+			"kind": "octal_digit",
+			"pattern": "[0-7]"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_digit",
+			"pattern": "[0-9A-Fa-f]"
+		},
+		{
+			"fragment": true,
+			"kind": "unicode_value",
+			"pattern": "\\f{unicode_char}|\\f{little_u_value}|\\f{big_u_value}|\\f{escaped_char}"
+		},
+		{
+			"fragment": true,
+			"kind": "byte_value",
+			"pattern": "\\f{octal_byte_value}|\\f{hex_byte_value}"
+		},
+		{
+			"fragment": true,
+			"kind": "octal_byte_value",
+			"pattern": "\\\\\\f{octal_digit}\\f{octal_digit}\\f{octal_digit}"
+		},
+		{
+			"fragment": true,
+			"kind": "hex_byte_value",
+			"pattern": "\\\\x\\f{hex_digit}\\f{hex_digit}"
+		},
+		{
+			"fragment": true,
+			"kind": "little_u_value",
+			"pattern": "\\\\u\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}"
+		},
+		{
+			"fragment": true,
+			"kind": "big_u_value",
+			"pattern": "\\\\U\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}\\f{hex_digit}"
+		},
+		{
+			"fragment": true,
+			"kind": "escaped_char",
+			"pattern": "\\\\[abfnrtv\\\\'\"]"
+		}
+	]
+}
