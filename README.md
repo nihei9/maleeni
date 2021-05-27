@@ -113,14 +113,14 @@ top level object:
 
 entry object:
 
-| Field    | Type             | Nullable | Description                                                                                   |
-|----------|------------------|----------|-----------------------------------------------------------------------------------------------|
-| kind     | string           | false    | A name of a token kind                                                                        |
-| pattern  | string           | false    | A pattern in a regular expression                                                             |
-| modes    | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                   |
-| push     | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears |
-| pop      | bool             | true     | When `pop` is `true`, the lexer pops a mode from own mode stack.                              |
-| fragment | bool             | true     | When `fragment` is `true`, its entry is a fragment.                                           |
+| Field    | Type             | Nullable | Description                                                                                                           |
+|----------|------------------|----------|-----------------------------------------------------------------------------------------------------------------------|
+| kind     | string           | false    | A name of a token kind. The name must be unique, but duplicate names between fragments and non-fragments are allowed. |
+| pattern  | string           | false    | A pattern in a regular expression                                                                                     |
+| modes    | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                                           |
+| push     | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears                         |
+| pop      | bool             | true     | When `pop` is `true`, the lexer pops a mode from own mode stack.                                                      |
+| fragment | bool             | true     | When `fragment` is `true`, its entry is a fragment.                                                                   |
 
 See [Regular Expression Syntax](#regular-expression-syntax) for more details on the regular expression syntax.
 

@@ -143,11 +143,20 @@ func (s *LexSpec) Validate() error {
 	}
 	{
 		ks := map[string]struct{}{}
+		fks := map[string]struct{}{}
 		for _, e := range s.Entries {
-			if _, exist := ks[e.Kind.String()]; exist {
-				return fmt.Errorf("kinds `%v` are duplicates", e.Kind)
+			// Allow duplicate names between fragments and non-fragments.
+			if e.Fragment {
+				if _, exist := fks[e.Kind.String()]; exist {
+					return fmt.Errorf("kinds `%v` are duplicates", e.Kind)
+				}
+				fks[e.Kind.String()] = struct{}{}
+			} else {
+				if _, exist := ks[e.Kind.String()]; exist {
+					return fmt.Errorf("kinds `%v` are duplicates", e.Kind)
+				}
+				ks[e.Kind.String()] = struct{}{}
 			}
-			ks[e.Kind.String()] = struct{}{}
 		}
 	}
 	return nil
