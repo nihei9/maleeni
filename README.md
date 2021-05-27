@@ -242,3 +242,62 @@ For instance, you can define [an identifier of golang](https://golang.org/ref/sp
 Lex Mode is a feature that allows you to separate a DFA transition table for each mode.
 
 `modes` field of an entry in a lexical specification indicates in which mode the entry is enabled. If `modes` field is empty, the entry is enabled only in the default mode. The compiler groups the entries and generates a DFA for each mode. Thus the driver can switch the transition table by switching modes. The mode switching follows `push` or `pop` field of each entry.
+
+For instance, you can define a subset of [the string literal of golang](https://golang.org/ref/spec#String_literals) as follows:
+
+```json
+{
+    "entries": [
+        {
+            "kind": "string_open",
+            "pattern": "\"",
+            "push": "string"
+        },
+        {
+            "modes": ["string"],
+            "kind": "char_seq",
+            "pattern": "[^\\u{000A}\"\\\\]+"
+        },
+        {
+            "modes": ["string"],
+            "kind": "escaped_char",
+            "pattern": "\\\\[abfnrtv\\\\'\"]"
+        },
+        {
+            "modes": ["string"],
+            "kind": "escape_symbol",
+            "pattern": "\\\\"
+        },
+        {
+            "modes": ["string"],
+            "kind": "newline",
+            "pattern": "\\u{000A}"
+        },
+        {
+            "modes": ["string"],
+            "kind": "string_close",
+            "pattern": "\"",
+            "pop": true
+        },
+        {
+            "kind": "identifier",
+            "pattern": "[A-Za-z_][0-9A-Za-z_]*"
+        }
+    ]
+}
+```
+
+In the above specification, when the `"` mark appears in default mode (it's the initial mode), the driver transitions to the `string` mode and interprets character sequences (`char_seq`) and escape sequences (`escaped_char`). When the `"` mark appears the next time, the driver returns to the `default` mode.
+
+```sh
+$ echo -n '"foo\nbar"foo' | maleeni lex go-string-cspec.json | jq -r '[.mode_name, .kind_name, .text, .eof] | @csv'
+"default","string_open","""",false
+"string","char_seq","foo",false
+"string","escaped_char","\n",false
+"string","char_seq","bar",false
+"string","string_close","""",false
+"default","identifier","foo",false
+"default","","",true
+```
+
+The input string enclosed in the `"` mark (`foo\nbar`) are interpreted as the `char_seq` and the `escaped_char`, while the outer string (`foo`) is interpreted as the `identifier`. The same string `foo` is interpreted as different types because of the different modes in which they are interpreted.
