@@ -57,6 +57,19 @@ $ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_
 "","",true
 ```
 
+The JSON format of tokens that `maleeni lex` command prints is as follows:
+
+| Field     | Type              | Description                                                                            |
+|-----------|-------------------|----------------------------------------------------------------------------------------|
+| mode      | integer           | `mode` represents a number that corresponds to a `mode_name`.                          |
+| mode_name | string            | `mode_name` is a mode name that represents in which mode the lexer detected the token. |
+| kind      | integer           | `kind` represents a number that corresponds to a `KindName`.                           |
+| kind_name | string            | `kind_name` is a kind name that represents what kind the token has.                    |
+| match     | array of integers | `match` is a byte sequence matched a pattern of a lexical specification.               |
+| text      | string            | `text` is a string representation of `match`.                                          |
+| eof       | bool              | If `eof` is true, it means the token is the EOF token.                                 |
+| invalid   | bool              | If `invalid` is true, it means the token is an error token.                            |
+
 When using the driver, please import `github.com/nihei9/maleeni/driver` and `github.com/nihei9/maleeni/spec` package.
 You can use the driver easily in the following way:
 
