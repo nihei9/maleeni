@@ -2,6 +2,8 @@
 
 maleeni provides a compiler that generates a portable DFA for lexical analysis and a driver for golang.
 
+[![Test](https://github.com/nihei9/maleeni/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/maleeni/actions/workflows/test.yml)
+
 ## Installation
 
 ```sh
