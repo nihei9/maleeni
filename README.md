@@ -1,6 +1,6 @@
 # maleeni
 
-maleeni provides a compiler that generates a portable DFA for lexical analysis and a driver for golang.
+maleeni provides a command that generates a portable DFA for lexical analysis and a driver for golang. maleeni also provides a command to perform lexical analysis to allow easy debugging of your lexical specification.
 
 [![Test](https://github.com/nihei9/maleeni/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/maleeni/actions/workflows/test.yml)
 
@@ -33,7 +33,7 @@ First, define your lexical specification in JSON format. As an example, let's wr
 }
 ```
 
-Save the above specification to a file. In this explanation, the file name is lexspec.json.
+Save the above specification to a file in UTF-8. In this explanation, the file name is lexspec.json.
 
 Next, generate a DFA from the lexical specification using `maleeni compile` command.
 
@@ -43,6 +43,8 @@ $ maleeni compile -l lexspec.json -o clexspec.json
 
 If you want to make sure that the lexical specification behaves as expected, you can use `maleeni lex` command to try lexical analysis without having to implement a driver.
 `maleeni lex` command outputs tokens in JSON format. For simplicity, print significant fields of the tokens in CSV format using jq command.
+
+⚠️ An encoding that `maleeni lex` and the driver can handle is only UTF-8.
 
 ```sh
 $ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_name, .text, .eof] | @csv'
@@ -145,6 +147,8 @@ See [Regular Expression Syntax](#regular-expression-syntax) for more details on 
 
 ## Regular Expression Syntax
 
+⚠️ In JSON, you need to write `\` as `\\`.
+
 ### Composites
 
 Concatenation and alternation allow you to combine multiple characters or multiple patterns into one pattern.
@@ -162,6 +166,7 @@ In addition to using ordinary characters, there are other ways to represent a si
 * bracket expressions
 * code point expressions
 * character property expressions
+* escape sequences
 
 The dot expression matches any one chracter.
 
@@ -198,6 +203,29 @@ The character property expressions match a character that has a specified charac
 | \p{gc=Letter}               | the same as \p{General_Category=Letter}            |
 | \p{Letter}                  | the same as \p{General_Category=Letter}            |
 | \p{l}                       | the same as \p{General_Category=Letter}            |
+
+As you escape the special character with `\`, you can write a rule that matches the special character itself.
+The following escape sequences are available outside of bracket expressions.
+
+| Example | Description |
+|---------|-------------|
+| \\.     | '.'         |
+| \\?     | '?'         |
+| \\*     | '*'         |
+| \\+     | '+'         |
+| \\(     | '('         |
+| \\)     | ')'         |
+| \\[     | '['         |
+| \\\|    | '\|'        |
+| \\\\    | '\\'        |
+
+The following escape sequences are available inside bracket expressions.
+
+| Example | Description |
+|---------|-------------|
+| \\^     | '^'         |
+| \\-     | '-'         |
+| \\]     | ']'         |
 
 ### Repetitions
 
