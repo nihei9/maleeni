@@ -7,7 +7,7 @@ maleeni provides a command that generates a portable DFA for lexical analysis an
 ## Installation
 
 ```sh
-$ go install ./cmd/maleeni
+$ go install github.com/nihei9/maleeni/cmd/maleeni@latest
 ```
 
 ## Usage
