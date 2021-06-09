@@ -24,7 +24,10 @@ func init() {
 		Use:   "lex clexspec",
 		Short: "Tokenize a text stream",
 		Long: `lex takes a text stream and tokenizes it according to a compiled lexical specification.
-As use ` + "`maleeni compile`" + `, you can generate the specification.`,
+As use ` + "`maleeni compile`" + `, you can generate the specification.
+
+Note that passive mode transitions are not performed. Thus, if there is a mode in
+your lexical specification that is set passively, lexemes in that mode will not be recognized.`,
 		Example: `  cat src | maleeni lex clexspec.json`,
 		Args:    cobra.ExactArgs(1),
 		RunE:    runLex,

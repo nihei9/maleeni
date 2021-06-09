@@ -52,9 +52,11 @@ func newEOFTokenDefault() *Token {
 
 func TestLexer_Next(t *testing.T) {
 	test := []struct {
-		lspec  *spec.LexSpec
-		src    string
-		tokens []*Token
+		lspec           *spec.LexSpec
+		src             string
+		tokens          []*Token
+		passiveModeTran bool
+		tran            func(l *Lexer, tok *Token) error
 	}{
 		{
 			lspec: &spec.LexSpec{
@@ -576,17 +578,108 @@ func TestLexer_Next(t *testing.T) {
 				newEOFTokenDefault(),
 			},
 		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntry([]string{"default", "mode_1", "mode_2"}, "white_space", ` *`, "", false),
+					newLexEntry([]string{"default"}, "char", `.`, "", false),
+					newLexEntry([]string{"default"}, "push_1", `-> 1`, "", false),
+					newLexEntry([]string{"mode_1"}, "push_2", `-> 2`, "", false),
+					newLexEntry([]string{"mode_1"}, "pop_1", `<-`, "", false),
+					newLexEntry([]string{"mode_2"}, "pop_2", `<-`, "", false),
+				},
+			},
+			src: `-> 1 -> 2 <- <- a`,
+			tokens: []*Token{
+				newToken(1, "default", 3, "push_1", newByteSequence([]byte(`-> 1`))),
+				newToken(2, "mode_1", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(2, "mode_1", 2, "push_2", newByteSequence([]byte(`-> 2`))),
+				newToken(3, "mode_2", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(3, "mode_2", 2, "pop_2", newByteSequence([]byte(`<-`))),
+				newToken(2, "mode_1", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(2, "mode_1", 3, "pop_1", newByteSequence([]byte(`<-`))),
+				newToken(1, "default", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(1, "default", 2, "char", newByteSequence([]byte(`a`))),
+				newEOFTokenDefault(),
+			},
+			passiveModeTran: true,
+			tran: func(l *Lexer, tok *Token) error {
+				switch l.clspec.Modes[l.Mode().Int()] {
+				case "default":
+					switch tok.KindName {
+					case "push_1":
+						l.PushMode(2)
+					}
+				case "mode_1":
+					switch tok.KindName {
+					case "push_2":
+						l.PushMode(3)
+					case "pop_1":
+						return l.PopMode()
+					}
+				case "mode_2":
+					switch tok.KindName {
+					case "pop_2":
+						return l.PopMode()
+					}
+				}
+				return nil
+			},
+		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntry([]string{"default", "mode_1", "mode_2"}, "white_space", ` *`, "", false),
+					newLexEntry([]string{"default"}, "char", `.`, "", false),
+					newLexEntry([]string{"default"}, "push_1", `-> 1`, "mode_1", false),
+					newLexEntry([]string{"mode_1"}, "push_2", `-> 2`, "", false),
+					newLexEntry([]string{"mode_1"}, "pop_1", `<-`, "", false),
+					newLexEntry([]string{"mode_2"}, "pop_2", `<-`, "", true),
+				},
+			},
+			src: `-> 1 -> 2 <- <- a`,
+			tokens: []*Token{
+				newToken(1, "default", 3, "push_1", newByteSequence([]byte(`-> 1`))),
+				newToken(2, "mode_1", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(2, "mode_1", 2, "push_2", newByteSequence([]byte(`-> 2`))),
+				newToken(3, "mode_2", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(3, "mode_2", 2, "pop_2", newByteSequence([]byte(`<-`))),
+				newToken(2, "mode_1", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(2, "mode_1", 3, "pop_1", newByteSequence([]byte(`<-`))),
+				newToken(1, "default", 1, "white_space", newByteSequence([]byte(` `))),
+				newToken(1, "default", 2, "char", newByteSequence([]byte(`a`))),
+				newEOFTokenDefault(),
+			},
+			// Active mode transition and an external transition function can be used together.
+			passiveModeTran: false,
+			tran: func(l *Lexer, tok *Token) error {
+				switch l.clspec.Modes[l.Mode().Int()] {
+				case "mode_1":
+					switch tok.KindName {
+					case "push_2":
+						l.PushMode(3)
+					case "pop_1":
+						return l.PopMode()
+					}
+				}
+				return nil
+			},
+		},
 	}
 	for i, tt := range test {
 		for compLv := compiler.CompressionLevelMin; compLv <= compiler.CompressionLevelMax; compLv++ {
 			t.Run(fmt.Sprintf("#%v-%v", i, compLv), func(t *testing.T) {
 				clspec, err := compiler.Compile(tt.lspec, compiler.CompressionLevel(compLv))
 				if err != nil {
-					t.Fatalf("unexpected error occurred: %v", err)
+					t.Fatalf("unexpected error: %v", err)
 				}
-				lexer, err := NewLexer(clspec, strings.NewReader(tt.src))
+				opts := []LexerOption{}
+				if tt.passiveModeTran {
+					opts = append(opts, DisableModeTransition())
+				}
+				lexer, err := NewLexer(clspec, strings.NewReader(tt.src), opts...)
 				if err != nil {
-					t.Fatalf("unexpecated error occurred; %v", err)
+					t.Fatalf("unexpected error: %v", err)
 				}
 				for _, eTok := range tt.tokens {
 					tok, err := lexer.Next()
@@ -598,6 +691,13 @@ func TestLexer_Next(t *testing.T) {
 					// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match(), tok.Text(), tok.EOF, tok.Invalid)
 					if tok.EOF {
 						break
+					}
+
+					if tt.tran != nil {
+						err := tt.tran(lexer, tok)
+						if err != nil {
+							t.Fatalf("unexpected error: %v", err)
+						}
 					}
 				}
 			})

@@ -151,6 +151,13 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 
 type LexerOption func(l *Lexer) error
 
+func DisableModeTransition() LexerOption {
+	return func(l *Lexer) error {
+		l.passiveModeTran = true
+		return nil
+	}
+}
+
 func EnableLogging(w io.Writer) LexerOption {
 	return func(l *Lexer) error {
 		logger, err := log.NewLogger(w)
@@ -163,12 +170,13 @@ func EnableLogging(w io.Writer) LexerOption {
 }
 
 type Lexer struct {
-	clspec    *spec.CompiledLexSpec
-	src       []byte
-	srcPtr    int
-	tokBuf    []*Token
-	modeStack []spec.LexModeNum
-	logger    log.Logger
+	clspec          *spec.CompiledLexSpec
+	src             []byte
+	srcPtr          int
+	tokBuf          []*Token
+	modeStack       []spec.LexModeNum
+	passiveModeTran bool
+	logger          log.Logger
 }
 
 func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) {
@@ -183,7 +191,8 @@ func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...LexerOption) 
 		modeStack: []spec.LexModeNum{
 			clspec.InitialMode,
 		},
-		logger: log.NewNopLogger(),
+		passiveModeTran: false,
+		logger:          log.NewNopLogger(),
 	}
 	for _, opt := range opts {
 		err := opt(l)
@@ -201,7 +210,7 @@ func (l *Lexer) Next() (*Token, error) {
   State:
     mode: #%v %v
     pointer: %v
-    token buffer: %v`, l.mode(), l.clspec.Modes[l.mode()], l.srcPtr, l.tokBuf)
+    token buffer: %v`, l.Mode(), l.clspec.Modes[l.Mode()], l.srcPtr, l.tokBuf)
 
 	if len(l.tokBuf) > 0 {
 		tok := l.tokBuf[0]
@@ -212,7 +221,7 @@ func (l *Lexer) Next() (*Token, error) {
 		return tok, nil
 	}
 
-	tok, err := l.nextAndTranMode()
+	tok, err := l.nextAndTransition()
 	if err != nil {
 		l.logger.Log("  Detectes an error: %v", err)
 		return nil, err
@@ -226,7 +235,7 @@ func (l *Lexer) Next() (*Token, error) {
 	}
 	errTok := tok
 	for {
-		tok, err = l.nextAndTranMode()
+		tok, err = l.nextAndTransition()
 		if err != nil {
 			l.logger.Log("  Detectes an error: %v", err)
 			return nil, err
@@ -246,7 +255,7 @@ func (l *Lexer) Next() (*Token, error) {
 	return errTok, nil
 }
 
-func (l *Lexer) nextAndTranMode() (*Token, error) {
+func (l *Lexer) nextAndTransition() (*Token, error) {
 	tok, err := l.next()
 	if err != nil {
 		return nil, err
@@ -254,16 +263,19 @@ func (l *Lexer) nextAndTranMode() (*Token, error) {
 	if tok.EOF || tok.Invalid {
 		return tok, nil
 	}
-	spec := l.clspec.Specs[l.mode()]
+	if l.passiveModeTran {
+		return tok, nil
+	}
+	spec := l.clspec.Specs[l.Mode()]
 	if spec.Pop[tok.Kind] == 1 {
-		err := l.popMode()
+		err := l.PopMode()
 		if err != nil {
 			return nil, err
 		}
 	}
 	mode := spec.Push[tok.Kind]
 	if !mode.IsNil() {
-		l.pushMode(mode)
+		l.PushMode(mode)
 	}
 	// The checking length of the mode stack must be at after pop and push operations
 	// because those operations can be performed at the same time.
@@ -277,7 +289,7 @@ func (l *Lexer) nextAndTranMode() (*Token, error) {
 }
 
 func (l *Lexer) next() (*Token, error) {
-	mode := l.mode()
+	mode := l.Mode()
 	modeName := l.clspec.Modes[mode]
 	spec := l.clspec.Specs[mode]
 	state := spec.DFA.InitialState
@@ -343,15 +355,15 @@ func (l *Lexer) lookupNextState(mode spec.LexModeNum, state int, v int) (int, bo
 	return next, true
 }
 
-func (l *Lexer) mode() spec.LexModeNum {
+func (l *Lexer) Mode() spec.LexModeNum {
 	return l.modeStack[len(l.modeStack)-1]
 }
 
-func (l *Lexer) pushMode(mode spec.LexModeNum) {
+func (l *Lexer) PushMode(mode spec.LexModeNum) {
 	l.modeStack = append(l.modeStack, mode)
 }
 
-func (l *Lexer) popMode() error {
+func (l *Lexer) PopMode() error {
 	sLen := len(l.modeStack)
 	if sLen == 0 {
 		return fmt.Errorf("cannot pop a lex mode from a lex mode stack any more")
