@@ -665,6 +665,34 @@ func TestLexer_Next(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			lspec: &spec.LexSpec{
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("dot", spec.EscapePattern(`.`)),
+					newLexEntryDefaultNOP("star", spec.EscapePattern(`*`)),
+					newLexEntryDefaultNOP("plus", spec.EscapePattern(`+`)),
+					newLexEntryDefaultNOP("question", spec.EscapePattern(`?`)),
+					newLexEntryDefaultNOP("vbar", spec.EscapePattern(`|`)),
+					newLexEntryDefaultNOP("lparen", spec.EscapePattern(`(`)),
+					newLexEntryDefaultNOP("rparen", spec.EscapePattern(`)`)),
+					newLexEntryDefaultNOP("lbrace", spec.EscapePattern(`[`)),
+					newLexEntryDefaultNOP("backslash", spec.EscapePattern(`\`)),
+				},
+			},
+			src: `.*+?|()[\`,
+			tokens: []*Token{
+				newTokenDefault(1, "dot", newByteSequence([]byte(`.`))),
+				newTokenDefault(2, "star", newByteSequence([]byte(`*`))),
+				newTokenDefault(3, "plus", newByteSequence([]byte(`+`))),
+				newTokenDefault(4, "question", newByteSequence([]byte(`?`))),
+				newTokenDefault(5, "vbar", newByteSequence([]byte(`|`))),
+				newTokenDefault(6, "lparen", newByteSequence([]byte(`(`))),
+				newTokenDefault(7, "rparen", newByteSequence([]byte(`)`))),
+				newTokenDefault(8, "lbrace", newByteSequence([]byte(`[`))),
+				newTokenDefault(9, "backslash", newByteSequence([]byte(`\`))),
+				newEOFTokenDefault(),
+			},
+		},
 	}
 	for i, tt := range test {
 		for compLv := compiler.CompressionLevelMin; compLv <= compiler.CompressionLevelMax; compLv++ {
