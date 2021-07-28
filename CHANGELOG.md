@@ -15,7 +15,7 @@
 	* Dot expression: `.`
 	* Bracket expressions: `[...]`, `[^...]`
 	* Code point expressions: `\u{...}`
-	* Character property expressions: `\p{Letter}`
+	* Character property expressions: `\p{...}`
 	* Repetition: `*`, `+`, `?`
 	* Grouping: `(...)`
 	* Fragment: `\f{...}`
