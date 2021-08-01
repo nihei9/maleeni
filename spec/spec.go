@@ -29,6 +29,18 @@ func (k LexKind) validate() error {
 	return nil
 }
 
+// LexKindID is a unique ID among modes.
+type LexKindID int
+
+func (id LexKindID) Int() int {
+	return int(id)
+}
+
+const (
+	LexKindIDNil = LexKindID(0)
+	LexKindIDMin = LexKindID(1)
+)
+
 type LexPattern string
 
 func (p LexPattern) validate() error {
@@ -199,6 +211,8 @@ type CompiledLexModeSpec struct {
 type CompiledLexSpec struct {
 	InitialMode      LexModeNum             `json:"initial_mode"`
 	Modes            []LexModeName          `json:"modes"`
+	Kinds            []LexKind              `json:"kinds"`
+	KindIDs          [][]LexKindID          `json:"kind_ids"`
 	CompressionLevel int                    `json:"compression_level"`
 	Specs            []*CompiledLexModeSpec `json:"specs"`
 }

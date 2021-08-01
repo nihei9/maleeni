@@ -67,6 +67,7 @@ The JSON format of tokens that `maleeni lex` command prints is as follows:
 |-----------|-------------------|----------------------------------------------------------------------------------------|
 | mode      | integer           | `mode` represents a number that corresponds to a `mode_name`.                          |
 | mode_name | string            | `mode_name` is a mode name that represents in which mode the lexer detected the token. |
+| kind_id   | integer           | `kind_id` represents an ID of a kind and is unique among modes.                        |
 | kind      | integer           | `kind` represents a number that corresponds to a `KindName`.                           |
 | kind_name | string            | `kind_name` is a kind name that represents what kind the token has.                    |
 | match     | array of integers | `match` is a byte sequence matched a pattern of a lexical specification.               |

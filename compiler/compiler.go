@@ -69,9 +69,47 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 		modeSpecs = append(modeSpecs, modeSpec)
 	}
 
+	var kindNames []spec.LexKind
+	var name2ID map[spec.LexKind]spec.LexKindID
+	{
+		name2ID = map[spec.LexKind]spec.LexKindID{}
+		id := spec.LexKindIDMin
+		for _, modeSpec := range modeSpecs[1:] {
+			for _, name := range modeSpec.Kinds[1:] {
+				if _, ok := name2ID[name]; ok {
+					continue
+				}
+				name2ID[name] = id
+				id++
+			}
+		}
+
+		kindNames = make([]spec.LexKind, len(name2ID)+1)
+		for name, id := range name2ID {
+			kindNames[id] = name
+		}
+	}
+
+	var kindIDs [][]spec.LexKindID
+	{
+		kindIDs = make([][]spec.LexKindID, len(modeSpecs))
+		for i, modeSpec := range modeSpecs[1:] {
+			ids := make([]spec.LexKindID, len(modeSpec.Kinds))
+			for modeID, name := range modeSpec.Kinds {
+				if modeID == 0 {
+					continue
+				}
+				ids[modeID] = name2ID[name]
+			}
+			kindIDs[i+1] = ids
+		}
+	}
+
 	return &spec.CompiledLexSpec{
 		InitialMode:      spec.LexModeNumDefault,
 		Modes:            modes,
+		Kinds:            kindNames,
+		KindIDs:          kindIDs,
 		CompressionLevel: config.compLv,
 		Specs:            modeSpecs,
 	}, nil

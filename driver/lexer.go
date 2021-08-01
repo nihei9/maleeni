@@ -62,6 +62,9 @@ type Token struct {
 	// `ModeName` is a mode name that represents in which mode the lexer detected the token.
 	ModeName spec.LexModeName
 
+	// `KindID` is a unique ID among modes.
+	KindID int
+
 	// `Kind` represents a number that corresponds to a `KindName`.
 	Kind int
 
@@ -78,11 +81,12 @@ type Token struct {
 	match byteSequence
 }
 
-func newToken(mode spec.LexModeNum, modeName spec.LexModeName, kind int, kindName string, match byteSequence) *Token {
+func newToken(mode spec.LexModeNum, modeName spec.LexModeName, kindID int, modeKindID int, kindName string, match byteSequence) *Token {
 	return &Token{
 		Mode:     mode,
 		ModeName: modeName,
-		Kind:     kind,
+		KindID:   kindID,
+		Kind:     modeKindID,
 		KindName: kindName,
 		match:    match,
 	}
@@ -131,6 +135,7 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Mode     int          `json:"mode"`
 		ModeName string       `json:"mode_name"`
+		KindID   int          `json:"kind_id"`
 		Kind     int          `json:"kind"`
 		KindName string       `json:"kind_name"`
 		Match    byteSequence `json:"match"`
@@ -140,6 +145,7 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 	}{
 		Mode:     t.Mode.Int(),
 		ModeName: t.ModeName.String(),
+		KindID:   t.KindID,
 		Kind:     t.Kind,
 		KindName: t.KindName,
 		Match:    t.match,
@@ -321,9 +327,10 @@ func (l *Lexer) next() (*Token, error) {
 			return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
 		}
 		state = nextState
-		id := spec.DFA.AcceptingStates[state]
-		if id != 0 {
-			tok = newToken(mode, modeName, id, spec.Kinds[id].String(), newByteSequence(buf))
+		modeKindID := spec.DFA.AcceptingStates[state]
+		if modeKindID != 0 {
+			kindID := l.clspec.KindIDs[mode][modeKindID]
+			tok = newToken(mode, modeName, kindID.Int(), modeKindID, spec.Kinds[modeKindID].String(), newByteSequence(buf))
 			unfixedBufLen = 0
 		}
 	}
