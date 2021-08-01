@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/nihei9/maleeni/spec"
 )
 
 func symPos(n uint16) symbolPosition {
@@ -1197,7 +1199,7 @@ func TestParse(t *testing.T) {
 			for kind, pattern := range tt.fragments {
 				fragments[kind] = []byte(pattern)
 			}
-			ast, _, err := parse(map[int][]byte{
+			ast, _, err := parse(map[spec.LexModeKindID][]byte{
 				1: []byte(tt.pattern),
 			}, fragments)
 			if tt.syntaxError != nil {
@@ -1237,7 +1239,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestParse_FollowAndSymbolTable(t *testing.T) {
-	root, symTab, err := parse(map[int][]byte{
+	root, symTab, err := parse(map[spec.LexModeKindID][]byte{
 		1: []byte("(a|b)*abb"),
 	}, nil)
 	if err != nil {
@@ -1295,7 +1297,7 @@ func TestParse_FollowAndSymbolTable(t *testing.T) {
 				symPos(4): entry(byte('b')),
 				symPos(5): entry(byte('b')),
 			},
-			endPos2ID: map[symbolPosition]int{
+			endPos2ID: map[symbolPosition]spec.LexModeKindID{
 				endPos(6): 1,
 			},
 		}

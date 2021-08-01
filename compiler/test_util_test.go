@@ -1,5 +1,7 @@
 package compiler
 
+import "github.com/nihei9/maleeni/spec"
+
 func newRangeSymbolNodeWithPos(from, to byte, pos symbolPosition) *symbolNode {
 	n := newRangeSymbolNode(from, to)
 	n.pos = pos
@@ -13,7 +15,7 @@ func newSymbolNodeWithPos(v byte, pos symbolPosition) *symbolNode {
 }
 
 func newEndMarkerNodeWithPos(id int, pos symbolPosition) *endMarkerNode {
-	n := newEndMarkerNode(id)
+	n := newEndMarkerNode(spec.LexModeKindID(id))
 	n.pos = pos
 	return n
 }

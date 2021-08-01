@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/nihei9/maleeni/spec"
 )
 
 type ParseErrors struct {
@@ -23,7 +25,7 @@ func (e *ParseErrors) Error() string {
 }
 
 type ParseError struct {
-	ID      int
+	ID      spec.LexModeKindID
 	Pattern []byte
 	Cause   error
 	Details string
@@ -44,13 +46,13 @@ func raiseSyntaxError(synErr *SyntaxError) {
 
 type symbolTable struct {
 	symPos2Byte map[symbolPosition]byteRange
-	endPos2ID   map[symbolPosition]int
+	endPos2ID   map[symbolPosition]spec.LexModeKindID
 }
 
 func genSymbolTable(root astNode) *symbolTable {
 	symTab := &symbolTable{
 		symPos2Byte: map[symbolPosition]byteRange{},
-		endPos2ID:   map[symbolPosition]int{},
+		endPos2ID:   map[symbolPosition]spec.LexModeKindID{},
 	}
 	return genSymTab(symTab, root)
 }
@@ -76,7 +78,7 @@ func genSymTab(symTab *symbolTable, node astNode) *symbolTable {
 	return symTab
 }
 
-func parse(regexps map[int][]byte, fragments map[string][]byte) (astNode, *symbolTable, error) {
+func parse(regexps map[spec.LexModeKindID][]byte, fragments map[string][]byte) (astNode, *symbolTable, error) {
 	if len(regexps) == 0 {
 		return nil, nil, fmt.Errorf("parse() needs at least one token entry")
 	}
@@ -159,7 +161,7 @@ func parseFragments(fragments map[string][]byte) (map[string]astNode, error) {
 	return fragmentASTs, nil
 }
 
-func parseRegexp(regexps map[int][]byte, fragmentASTs map[string]astNode) (astNode, error) {
+func parseRegexp(regexps map[spec.LexModeKindID][]byte, fragmentASTs map[string]astNode) (astNode, error) {
 	symPos := symbolPositionMin
 	var root astNode
 	var perrs []*ParseError

@@ -3,6 +3,8 @@ package compiler
 import (
 	"fmt"
 	"io"
+
+	"github.com/nihei9/maleeni/spec"
 )
 
 type astNode interface {
@@ -78,13 +80,13 @@ func (n *symbolNode) last() *symbolPositionSet {
 }
 
 type endMarkerNode struct {
-	id        int
+	id        spec.LexModeKindID
 	pos       symbolPosition
 	firstMemo *symbolPositionSet
 	lastMemo  *symbolPositionSet
 }
 
-func newEndMarkerNode(id int) *endMarkerNode {
+func newEndMarkerNode(id spec.LexModeKindID) *endMarkerNode {
 	return &endMarkerNode{
 		id:  id,
 		pos: symbolPositionNil,

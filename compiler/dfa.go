@@ -9,7 +9,7 @@ import (
 type DFA struct {
 	States               []string
 	InitialState         string
-	AcceptingStatesTable map[string]int
+	AcceptingStatesTable map[string]spec.LexModeKindID
 	TransitionTable      map[string][256]string
 }
 
@@ -65,7 +65,7 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 		}
 	}
 
-	accTab := map[string]int{}
+	accTab := map[string]spec.LexModeKindID{}
 	{
 		for h, s := range stateMap {
 			for _, pos := range s.set() {
@@ -104,33 +104,33 @@ func genDFA(root astNode, symTab *symbolTable) *DFA {
 }
 
 func genTransitionTable(dfa *DFA) (*spec.TransitionTable, error) {
-	state2Num := map[string]int{}
+	stateHash2ID := map[string]spec.StateID{}
 	for i, s := range dfa.States {
 		// Since 0 represents an invalid value in a transition table,
 		// assign a number greater than or equal to 1 to states.
-		state2Num[s] = i + 1
+		stateHash2ID[s] = spec.StateID(i + spec.StateIDMin.Int())
 	}
 
-	acc := make([]int, len(dfa.States)+1)
+	acc := make([]spec.LexModeKindID, len(dfa.States)+1)
 	for _, s := range dfa.States {
 		id, ok := dfa.AcceptingStatesTable[s]
 		if !ok {
 			continue
 		}
-		acc[state2Num[s]] = id
+		acc[stateHash2ID[s]] = id
 	}
 
 	rowCount := len(dfa.States) + 1
 	colCount := 256
-	tran := make([]int, rowCount*colCount)
+	tran := make([]spec.StateID, rowCount*colCount)
 	for s, tab := range dfa.TransitionTable {
 		for v, to := range tab {
-			tran[state2Num[s]*256+v] = state2Num[to]
+			tran[stateHash2ID[s].Int()*256+v] = stateHash2ID[to]
 		}
 	}
 
 	return &spec.TransitionTable{
-		InitialState:           state2Num[dfa.InitialState],
+		InitialStateID:         stateHash2ID[dfa.InitialState],
 		AcceptingStates:        acc,
 		UncompressedTransition: tran,
 		RowCount:               rowCount,

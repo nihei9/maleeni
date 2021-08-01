@@ -54,28 +54,28 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 		}
 	}
 
-	modeEntries, modes, modeNums, fragmetns := groupEntriesByLexMode(lexspec.Entries)
+	modeEntries, modeNames, modeName2ID, fragmetns := groupEntriesByLexMode(lexspec.Entries)
 
 	modeSpecs := []*spec.CompiledLexModeSpec{
 		nil,
 	}
 	for i, es := range modeEntries[1:] {
-		modeName := modes[i+1]
+		modeName := modeNames[i+1]
 		config.logger.Log("Compile %v mode:", modeName)
-		modeSpec, err := compile(es, modeNums, fragmetns, config)
+		modeSpec, err := compile(es, modeName2ID, fragmetns, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile in %v mode: %w", modeName, err)
 		}
 		modeSpecs = append(modeSpecs, modeSpec)
 	}
 
-	var kindNames []spec.LexKind
-	var name2ID map[spec.LexKind]spec.LexKindID
+	var kindNames []spec.LexKindName
+	var name2ID map[spec.LexKindName]spec.LexKindID
 	{
-		name2ID = map[spec.LexKind]spec.LexKindID{}
+		name2ID = map[spec.LexKindName]spec.LexKindID{}
 		id := spec.LexKindIDMin
 		for _, modeSpec := range modeSpecs[1:] {
-			for _, name := range modeSpec.Kinds[1:] {
+			for _, name := range modeSpec.KindNames[1:] {
 				if _, ok := name2ID[name]; ok {
 					continue
 				}
@@ -84,7 +84,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 			}
 		}
 
-		kindNames = make([]spec.LexKind, len(name2ID)+1)
+		kindNames = make([]spec.LexKindName, len(name2ID)+1)
 		for name, id := range name2ID {
 			kindNames[id] = name
 		}
@@ -94,8 +94,8 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	{
 		kindIDs = make([][]spec.LexKindID, len(modeSpecs))
 		for i, modeSpec := range modeSpecs[1:] {
-			ids := make([]spec.LexKindID, len(modeSpec.Kinds))
-			for modeID, name := range modeSpec.Kinds {
+			ids := make([]spec.LexKindID, len(modeSpec.KindNames))
+			for modeID, name := range modeSpec.KindNames {
 				if modeID == 0 {
 					continue
 				}
@@ -106,25 +106,25 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}
 
 	return &spec.CompiledLexSpec{
-		InitialMode:      spec.LexModeNumDefault,
-		Modes:            modes,
-		Kinds:            kindNames,
+		InitialModeID:    spec.LexModeIDDefault,
+		ModeNames:        modeNames,
+		KindNames:        kindNames,
 		KindIDs:          kindIDs,
 		CompressionLevel: config.compLv,
 		Specs:            modeSpecs,
 	}, nil
 }
 
-func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeNum, map[string]*spec.LexEntry) {
-	modes := []spec.LexModeName{
+func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeID, map[string]*spec.LexEntry) {
+	modeNames := []spec.LexModeName{
 		spec.LexModeNameNil,
 		spec.LexModeNameDefault,
 	}
-	modeNums := map[spec.LexModeName]spec.LexModeNum{
-		spec.LexModeNameNil:     spec.LexModeNumNil,
-		spec.LexModeNameDefault: spec.LexModeNumDefault,
+	modeName2ID := map[spec.LexModeName]spec.LexModeID{
+		spec.LexModeNameNil:     spec.LexModeIDNil,
+		spec.LexModeNameDefault: spec.LexModeIDDefault,
 	}
-	lastModeNum := spec.LexModeNumDefault
+	lastModeID := spec.LexModeIDDefault
 	modeEntries := [][]*spec.LexEntry{
 		nil,
 		{},
@@ -141,30 +141,30 @@ func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec
 				spec.LexModeNameDefault,
 			}
 		}
-		for _, mode := range ms {
-			num, ok := modeNums[mode]
+		for _, modeName := range ms {
+			modeID, ok := modeName2ID[modeName]
 			if !ok {
-				num = lastModeNum.Succ()
-				lastModeNum = num
-				modeNums[mode] = num
-				modes = append(modes, mode)
+				modeID = lastModeID + 1
+				lastModeID = modeID
+				modeName2ID[modeName] = modeID
+				modeNames = append(modeNames, modeName)
 				modeEntries = append(modeEntries, []*spec.LexEntry{})
 			}
-			modeEntries[num] = append(modeEntries[num], e)
+			modeEntries[modeID] = append(modeEntries[modeID], e)
 		}
 	}
-	return modeEntries, modes, modeNums, fragments
+	return modeEntries, modeNames, modeName2ID, fragments
 }
 
-func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexModeNum, fragments map[string]*spec.LexEntry, config *compilerConfig) (*spec.CompiledLexModeSpec, error) {
-	var kinds []spec.LexKind
-	var patterns map[int][]byte
+func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.LexModeID, fragments map[string]*spec.LexEntry, config *compilerConfig) (*spec.CompiledLexModeSpec, error) {
+	var kindNames []spec.LexKindName
+	var patterns map[spec.LexModeKindID][]byte
 	{
-		kinds = append(kinds, spec.LexKindNil)
-		patterns = map[int][]byte{}
+		kindNames = append(kindNames, spec.LexKindNameNil)
+		patterns = map[spec.LexModeKindID][]byte{}
 		for i, e := range entries {
-			kinds = append(kinds, e.Kind)
-			patterns[i+1] = []byte(e.Pattern)
+			kindNames = append(kindNames, e.Kind)
+			patterns[spec.LexModeKindID(i+1)] = []byte(e.Pattern)
 		}
 
 		config.logger.Log("Patterns:")
@@ -173,16 +173,16 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 		}
 	}
 
-	push := []spec.LexModeNum{
-		spec.LexModeNumNil,
+	push := []spec.LexModeID{
+		spec.LexModeIDNil,
 	}
 	pop := []int{
 		0,
 	}
 	for _, e := range entries {
-		pushV := spec.LexModeNumNil
+		pushV := spec.LexModeIDNil
 		if e.Push != "" {
-			pushV = modeNums[e.Push]
+			pushV = modeName2ID[e.Push]
 		}
 		push = append(push, pushV)
 		popV := 0
@@ -222,7 +222,7 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 
 		config.logger.Log(`DFA:
   States: %v states (%v entries)
-  Initial State: %v`, tranTab.RowCount, tranTab.RowCount*tranTab.ColCount, tranTab.InitialState)
+  Initial State ID: %v`, tranTab.RowCount, tranTab.RowCount*tranTab.ColCount, tranTab.InitialStateID)
 		config.logger.Log("  Accepting States:")
 		for state, symbol := range tranTab.AcceptingStates {
 			config.logger.Log("    %v: %v", state, symbol)
@@ -244,10 +244,10 @@ func compile(entries []*spec.LexEntry, modeNums map[spec.LexModeName]spec.LexMod
 	}
 
 	return &spec.CompiledLexModeSpec{
-		Kinds: kinds,
-		Push:  push,
-		Pop:   pop,
-		DFA:   tranTab,
+		KindNames: kindNames,
+		Push:      push,
+		Pop:       pop,
+		DFA:       tranTab,
 	}, nil
 }
 
@@ -259,7 +259,7 @@ const (
 func compressTransitionTableLv2(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
 	ueTab := compressor.NewUniqueEntriesTable()
 	{
-		orig, err := compressor.NewOriginalTable(tranTab.UncompressedTransition, tranTab.ColCount)
+		orig, err := compressor.NewOriginalTable(convertStateIDSliceToIntSlice(tranTab.UncompressedTransition), tranTab.ColCount)
 		if err != nil {
 			return nil, err
 		}
@@ -285,8 +285,8 @@ func compressTransitionTableLv2(tranTab *spec.TransitionTable) (*spec.Transition
 		UniqueEntries: &spec.RowDisplacementTable{
 			OriginalRowCount: rdTab.OriginalRowCount,
 			OriginalColCount: rdTab.OriginalColCount,
-			EmptyValue:       rdTab.EmptyValue,
-			Entries:          rdTab.Entries,
+			EmptyValue:       spec.StateIDNil,
+			Entries:          convertIntSliceToStateIDSlice(rdTab.Entries),
 			Bounds:           rdTab.Bounds,
 			RowDisplacement:  rdTab.RowDisplacement,
 		},
@@ -302,7 +302,7 @@ func compressTransitionTableLv2(tranTab *spec.TransitionTable) (*spec.Transition
 func compressTransitionTableLv1(tranTab *spec.TransitionTable) (*spec.TransitionTable, error) {
 	ueTab := compressor.NewUniqueEntriesTable()
 	{
-		orig, err := compressor.NewOriginalTable(tranTab.UncompressedTransition, tranTab.ColCount)
+		orig, err := compressor.NewOriginalTable(convertStateIDSliceToIntSlice(tranTab.UncompressedTransition), tranTab.ColCount)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func compressTransitionTableLv1(tranTab *spec.TransitionTable) (*spec.Transition
 	}
 
 	tranTab.Transition = &spec.UniqueEntriesTable{
-		UncompressedUniqueEntries: ueTab.UniqueEntries,
+		UncompressedUniqueEntries: convertIntSliceToStateIDSlice(ueTab.UniqueEntries),
 		RowNums:                   ueTab.RowNums,
 		OriginalRowCount:          ueTab.OriginalRowCount,
 		OriginalColCount:          ueTab.OriginalColCount,
@@ -321,4 +321,20 @@ func compressTransitionTableLv1(tranTab *spec.TransitionTable) (*spec.Transition
 	tranTab.UncompressedTransition = nil
 
 	return tranTab, nil
+}
+
+func convertStateIDSliceToIntSlice(s []spec.StateID) []int {
+	is := make([]int, len(s))
+	for i, v := range s {
+		is[i] = v.Int()
+	}
+	return is
+}
+
+func convertIntSliceToStateIDSlice(s []int) []spec.StateID {
+	ss := make([]spec.StateID, len(s))
+	for i, v := range s {
+		ss[i] = spec.StateID(v)
+	}
+	return ss
 }

@@ -47,33 +47,33 @@ If you want to make sure that the lexical specification behaves as expected, you
 ⚠️ An encoding that `maleeni lex` and the driver can handle is only UTF-8.
 
 ```sh
-$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_name, .text, .eof] | @csv'
-"word","The",false
-"whitespace"," ",false
-"word","truth",false
-"whitespace"," ",false
-"word","is",false
-"whitespace"," ",false
-"word","out",false
-"whitespace"," ",false
-"word","there",false
-"punctuation",".",false
-"","",true
+$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_id, .kind_name, .text, .eof] | @csv'
+2,"word","The",false
+1,"whitespace"," ",false
+2,"word","truth",false
+1,"whitespace"," ",false
+2,"word","is",false
+1,"whitespace"," ",false
+2,"word","out",false
+1,"whitespace"," ",false
+2,"word","there",false
+3,"punctuation",".",false
+0,"","",true
 ```
 
 The JSON format of tokens that `maleeni lex` command prints is as follows:
 
-| Field     | Type              | Description                                                                            |
-|-----------|-------------------|----------------------------------------------------------------------------------------|
-| mode      | integer           | `mode` represents a number that corresponds to a `mode_name`.                          |
-| mode_name | string            | `mode_name` is a mode name that represents in which mode the lexer detected the token. |
-| kind_id   | integer           | `kind_id` represents an ID of a kind and is unique among modes.                        |
-| kind      | integer           | `kind` represents a number that corresponds to a `KindName`.                           |
-| kind_name | string            | `kind_name` is a kind name that represents what kind the token has.                    |
-| match     | array of integers | `match` is a byte sequence matched a pattern of a lexical specification.               |
-| text      | string            | `text` is a string representation of `match`.                                          |
-| eof       | bool              | If `eof` is true, it means the token is the EOF token.                                 |
-| invalid   | bool              | If `invalid` is true, it means the token is an error token.                            |
+| Field        | Type              | Description                                                                                                                                           |
+|--------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| mode_id      | integer           | An ID of a lex mode.                                                                                                                                  |
+| mode_name    | string            | A name of a lex mode.                                                                                                                                 |
+| kind_id      | integer           | An ID of a kind. This is unique among all modes.                                                                                                      |
+| mode_kind_id | integer           | An ID of a lexical kind. This is unique only within a mode. Note that you need to use `KindID` field if you want to identify a kind across all modes. |
+| kind_name    | string            | A name of a lexical kind.                                                                                                                             |
+| match        | array of integers | A byte sequense of a lexeme.                                                                                                                          |
+| text         | string            | A string representation of a lexeme.                                                                                                                  |
+| eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                       |
+| invalid      | bool              | When this field is `true`, it means the token is an error token.                                                                                      |
 
 When using the driver, please import `github.com/nihei9/maleeni/driver` and `github.com/nihei9/maleeni/spec` package.
 You can use the driver easily in the following way:

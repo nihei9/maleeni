@@ -2,10 +2,12 @@ package compiler
 
 import (
 	"testing"
+
+	"github.com/nihei9/maleeni/spec"
 )
 
 func TestGenDFA(t *testing.T) {
-	root, symTab, err := parse(map[int][]byte{
+	root, symTab, err := parse(map[spec.LexModeKindID][]byte{
 		1: []byte("(a|b)*abb"),
 	}, nil)
 	if err != nil {
@@ -94,7 +96,7 @@ func TestGenDFA(t *testing.T) {
 		t.Errorf("initial state is mismatched; want: %v, got: %v", s0.hash(), dfa.InitialState)
 	}
 
-	accTab := map[string]int{
+	accTab := map[string]spec.LexModeKindID{
 		s3.hash(): 1,
 	}
 	if len(dfa.AcceptingStatesTable) != len(accTab) {

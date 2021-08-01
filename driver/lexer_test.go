@@ -16,7 +16,7 @@ func newLexEntry(modes []string, kind string, pattern string, push string, pop b
 		ms = append(ms, spec.LexModeName(m))
 	}
 	return &spec.LexEntry{
-		Kind:    spec.LexKind(kind),
+		Kind:    spec.LexKindName(kind),
 		Pattern: spec.LexPattern(pattern),
 		Modes:   ms,
 		Push:    spec.LexModeName(push),
@@ -26,7 +26,7 @@ func newLexEntry(modes []string, kind string, pattern string, push string, pop b
 
 func newLexEntryDefaultNOP(kind string, pattern string) *spec.LexEntry {
 	return &spec.LexEntry{
-		Kind:    spec.LexKind(kind),
+		Kind:    spec.LexKindName(kind),
 		Pattern: spec.LexPattern(pattern),
 		Modes: []spec.LexModeName{
 			spec.LexModeNameDefault,
@@ -36,18 +36,18 @@ func newLexEntryDefaultNOP(kind string, pattern string) *spec.LexEntry {
 
 func newLexEntryFragment(kind string, pattern string) *spec.LexEntry {
 	return &spec.LexEntry{
-		Kind:     spec.LexKind(kind),
+		Kind:     spec.LexKindName(kind),
 		Pattern:  spec.LexPattern(pattern),
 		Fragment: true,
 	}
 }
 
 func newTokenDefault(kindID int, modeKindID int, kindName string, match byteSequence) *Token {
-	return newToken(spec.LexModeNumDefault, spec.LexModeNameDefault, kindID, modeKindID, kindName, match)
+	return newToken(spec.LexModeIDDefault, spec.LexModeNameDefault, spec.LexKindID(kindID), spec.LexModeKindID(modeKindID), spec.LexKindName(kindName), match)
 }
 
 func newEOFTokenDefault() *Token {
-	return newEOFToken(spec.LexModeNumDefault, spec.LexModeNameDefault)
+	return newEOFToken(spec.LexModeIDDefault, spec.LexModeNameDefault)
 }
 
 func TestLexer_Next(t *testing.T) {
@@ -604,7 +604,7 @@ func TestLexer_Next(t *testing.T) {
 			},
 			passiveModeTran: true,
 			tran: func(l *Lexer, tok *Token) error {
-				switch l.clspec.Modes[l.Mode().Int()] {
+				switch l.clspec.ModeNames[l.Mode()] {
 				case "default":
 					switch tok.KindName {
 					case "push_1":
@@ -653,7 +653,7 @@ func TestLexer_Next(t *testing.T) {
 			// Active mode transition and an external transition function can be used together.
 			passiveModeTran: false,
 			tran: func(l *Lexer, tok *Token) error {
-				switch l.clspec.Modes[l.Mode().Int()] {
+				switch l.clspec.ModeNames[l.Mode()] {
 				case "mode_1":
 					switch tok.KindName {
 					case "push_2":
@@ -736,10 +736,10 @@ func TestLexer_Next(t *testing.T) {
 func testToken(t *testing.T, expected, actual *Token) {
 	t.Helper()
 
-	if actual.Mode != expected.Mode ||
+	if actual.ModeID != expected.ModeID ||
 		actual.ModeName != expected.ModeName ||
 		actual.KindID != expected.KindID ||
-		actual.Kind != expected.Kind ||
+		actual.ModeKindID != expected.ModeKindID ||
 		actual.KindName != expected.KindName ||
 		!bytes.Equal(actual.Match(), expected.Match()) ||
 		actual.EOF != expected.EOF ||
