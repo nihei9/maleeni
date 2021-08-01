@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0
+
+* [03e3688](https://github.com/nihei9/maleeni/commit/03e3688e3928c88c12107ea734c35281c814e0c0) - Add unique kind IDs to tokens.
+* [2433c27](https://github.com/nihei9/maleeni/commit/2433c27f26bc1be2d9b33f6550482abc48fa31ef) - Change APIs.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.2.0...v0.3.0)
+
 ## v0.2.0
 
 * [7e169f8](https://github.com/nihei9/maleeni/commit/7e169f85726a1a1067d08e92cbbb2707ffb4d7b0) - Support passive mode transition.
