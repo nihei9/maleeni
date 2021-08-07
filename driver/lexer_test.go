@@ -42,12 +42,48 @@ func newLexEntryFragment(kind string, pattern string) *spec.LexEntry {
 	}
 }
 
+func newToken(modeID spec.LexModeID, modeName spec.LexModeName, kindID spec.LexKindID, modeKindID spec.LexModeKindID, kindName spec.LexKindName, match byteSequence) *Token {
+	return &Token{
+		ModeID:     modeID,
+		ModeName:   modeName,
+		KindID:     kindID,
+		ModeKindID: modeKindID,
+		KindName:   kindName,
+		match:      match,
+	}
+}
+
 func newTokenDefault(kindID int, modeKindID int, kindName string, match byteSequence) *Token {
 	return newToken(spec.LexModeIDDefault, spec.LexModeNameDefault, spec.LexKindID(kindID), spec.LexModeKindID(modeKindID), spec.LexKindName(kindName), match)
 }
 
+func newEOFToken(modeID spec.LexModeID, modeName spec.LexModeName) *Token {
+	return &Token{
+		ModeID:     modeID,
+		ModeName:   modeName,
+		ModeKindID: 0,
+		EOF:        true,
+	}
+}
+
 func newEOFTokenDefault() *Token {
 	return newEOFToken(spec.LexModeIDDefault, spec.LexModeNameDefault)
+}
+
+func newInvalidToken(modeID spec.LexModeID, modeName spec.LexModeName, match byteSequence) *Token {
+	return &Token{
+		ModeID:     modeID,
+		ModeName:   modeName,
+		ModeKindID: 0,
+		match:      match,
+		Invalid:    true,
+	}
+}
+
+func withPos(tok *Token, row, col int) *Token {
+	tok.Row = row
+	tok.Col = col
+	return tok
 }
 
 func TestLexer_Next(t *testing.T) {
@@ -715,7 +751,7 @@ func TestLexer_Next(t *testing.T) {
 						t.Log(err)
 						break
 					}
-					testToken(t, eTok, tok)
+					testToken(t, eTok, tok, false)
 					// t.Logf("token: ID: %v, Match: %+v Text: \"%v\", EOF: %v, Invalid: %v", tok.ID, tok.Match(), tok.Text(), tok.EOF, tok.Invalid)
 					if tok.EOF {
 						break
@@ -733,7 +769,102 @@ func TestLexer_Next(t *testing.T) {
 	}
 }
 
-func testToken(t *testing.T, expected, actual *Token) {
+func TestLexer_Next_WithPosition(t *testing.T) {
+	lspec := &spec.LexSpec{
+		Entries: []*spec.LexEntry{
+			newLexEntryDefaultNOP("newline", `\u{000A}+`),
+			newLexEntryDefaultNOP("any", `.`),
+		},
+	}
+
+	clspec, err := compiler.Compile(lspec, compiler.CompressionLevel(compiler.CompressionLevelMax))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	src := string([]byte{
+		0x00,
+		0x7F,
+		0x0A,
+
+		0xC2, 0x80,
+		0xDF, 0xBF,
+		0x0A,
+
+		0xE0, 0xA0, 0x80,
+		0xE0, 0xBF, 0xBF,
+		0xE1, 0x80, 0x80,
+		0xEC, 0xBF, 0xBF,
+		0xED, 0x80, 0x80,
+		0xED, 0x9F, 0xBF,
+		0xEE, 0x80, 0x80,
+		0xEF, 0xBF, 0xBF,
+		0x0A,
+
+		0xF0, 0x90, 0x80, 0x80,
+		0xF0, 0xBF, 0xBF, 0xBF,
+		0xF1, 0x80, 0x80, 0x80,
+		0xF3, 0xBF, 0xBF, 0xBF,
+		0xF4, 0x80, 0x80, 0x80,
+		0xF4, 0x8F, 0xBF, 0xBF,
+		0x0A,
+		0x0A,
+		0x0A,
+	})
+
+	expected := []*Token{
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0x00})), 0, 0),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0x7F})), 0, 1),
+		withPos(newTokenDefault(1, 1, "newline", newByteSequence([]byte{0x0A})), 0, 2),
+
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xC2, 0x80})), 1, 0),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xDF, 0xBF})), 1, 1),
+		withPos(newTokenDefault(1, 1, "newline", newByteSequence([]byte{0x0A})), 1, 2),
+
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xE0, 0xA0, 0x80})), 2, 0),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xE0, 0xBF, 0xBF})), 2, 1),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xE1, 0x80, 0x80})), 2, 2),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xEC, 0xBF, 0xBF})), 2, 3),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xED, 0x80, 0x80})), 2, 4),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xED, 0x9F, 0xBF})), 2, 5),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xEE, 0x80, 0x80})), 2, 6),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xEF, 0xBF, 0xBF})), 2, 7),
+		withPos(newTokenDefault(1, 1, "newline", newByteSequence([]byte{0x0A})), 2, 8),
+
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF0, 0x90, 0x80, 0x80})), 3, 0),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF0, 0xBF, 0xBF, 0xBF})), 3, 1),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF1, 0x80, 0x80, 0x80})), 3, 2),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF3, 0xBF, 0xBF, 0xBF})), 3, 3),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF4, 0x80, 0x80, 0x80})), 3, 4),
+		withPos(newTokenDefault(2, 2, "any", newByteSequence([]byte{0xF4, 0x8F, 0xBF, 0xBF})), 3, 5),
+
+		// When a token contains multiple line breaks, the driver sets the token position to
+		// the line number where a lexeme first appears.
+		withPos(newTokenDefault(1, 1, "newline", newByteSequence([]byte{0x0A, 0x0A, 0x0A})), 3, 6),
+
+		withPos(newEOFTokenDefault(), 0, 0),
+	}
+
+	lexer, err := NewLexer(clspec, strings.NewReader(src))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, eTok := range expected {
+		tok, err := lexer.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		testToken(t, eTok, tok, true)
+
+		if tok.EOF {
+			break
+		}
+	}
+}
+
+func testToken(t *testing.T, expected, actual *Token, checkPosition bool) {
 	t.Helper()
 
 	if actual.ModeID != expected.ModeID ||
@@ -745,5 +876,11 @@ func testToken(t *testing.T, expected, actual *Token) {
 		actual.EOF != expected.EOF ||
 		actual.Invalid != expected.Invalid {
 		t.Fatalf(`unexpected token; want: %v ("%v"), got: %v ("%v")`, expected, expected.Text(), actual, actual.Text())
+	}
+
+	if checkPosition {
+		if actual.Row != expected.Row || actual.Col != expected.Col {
+			t.Fatalf(`unexpected token; want: %v ("%v"), got: %v ("%v")`, expected, expected.Text(), actual, actual.Text())
+		}
 	}
 }

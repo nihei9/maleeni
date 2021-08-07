@@ -72,6 +72,13 @@ type Token struct {
 	// KindName is a name of a lexical kind.
 	KindName spec.LexKindName
 
+	// Row is a row number where a lexeme appears.
+	Row int
+
+	// Col is a column number where a lexeme appears.
+	// Note that Col is counted in code points, not bytes.
+	Col int
+
 	// When this field is true, it means the token is the EOF token.
 	EOF bool
 
@@ -82,44 +89,14 @@ type Token struct {
 	match byteSequence
 }
 
-func newToken(modeID spec.LexModeID, modeName spec.LexModeName, kindID spec.LexKindID, modeKindID spec.LexModeKindID, kindName spec.LexKindName, match byteSequence) *Token {
-	return &Token{
-		ModeID:     modeID,
-		ModeName:   modeName,
-		KindID:     kindID,
-		ModeKindID: modeKindID,
-		KindName:   kindName,
-		match:      match,
-	}
-}
-
-func newEOFToken(modeID spec.LexModeID, modeName spec.LexModeName) *Token {
-	return &Token{
-		ModeID:     modeID,
-		ModeName:   modeName,
-		ModeKindID: 0,
-		EOF:        true,
-	}
-}
-
-func newInvalidToken(modeID spec.LexModeID, modeName spec.LexModeName, match byteSequence) *Token {
-	return &Token{
-		ModeID:     modeID,
-		ModeName:   modeName,
-		ModeKindID: 0,
-		match:      match,
-		Invalid:    true,
-	}
-}
-
 func (t *Token) String() string {
 	if t.Invalid {
-		return fmt.Sprintf("!{mode id: %v, mode name: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.Text(), t.Match())
+		return fmt.Sprintf("!{mode id: %v, mode name: %v, row: %v, col: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.Row, t.Col, t.Text(), t.Match())
 	}
 	if t.EOF {
-		return "{eof}"
+		return fmt.Sprintf("{kind name: eof, row: %v, col: %v}", t.Row, t.Col)
 	}
-	return fmt.Sprintf("{mode id: %v, mode name: %v, kind id: %v, mode kind id: %v, kind name: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.KindID, t.ModeKindID, t.KindName, t.Text(), t.Match())
+	return fmt.Sprintf("{mode id: %v, mode name: %v, kind id: %v, mode kind id: %v, kind name: %v, row: %v, col: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.KindID, t.ModeKindID, t.KindName, t.Row, t.Col, t.Text(), t.Match())
 }
 
 // Match returns a byte slice matched a pattern of a lexical specification.
@@ -139,6 +116,8 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 		KindID     int          `json:"kind_id"`
 		ModeKindID int          `json:"mode_kind_id"`
 		KindName   string       `json:"kind_name"`
+		Row        int          `json:"row"`
+		Col        int          `json:"col"`
 		Match      byteSequence `json:"match"`
 		Text       string       `json:"text"`
 		EOF        bool         `json:"eof"`
@@ -149,6 +128,8 @@ func (t *Token) MarshalJSON() ([]byte, error) {
 		KindID:     t.KindID.Int(),
 		ModeKindID: t.ModeKindID.Int(),
 		KindName:   t.KindName.String(),
+		Row:        t.Row,
+		Col:        t.Col,
 		Match:      t.match,
 		Text:       t.Text(),
 		EOF:        t.EOF,
@@ -180,6 +161,10 @@ type Lexer struct {
 	clspec          *spec.CompiledLexSpec
 	src             []byte
 	srcPtr          int
+	row             int
+	col             int
+	prevRow         int
+	prevCol         int
 	tokBuf          []*Token
 	modeStack       []spec.LexModeID
 	passiveModeTran bool
@@ -195,6 +180,8 @@ func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...LexerOption) 
 		clspec: clspec,
 		src:    b,
 		srcPtr: 0,
+		row:    0,
+		col:    0,
 		modeStack: []spec.LexModeID{
 			clspec.InitialModeID,
 		},
@@ -302,6 +289,8 @@ func (l *Lexer) next() (*Token, error) {
 	state := spec.DFA.InitialStateID
 	buf := []byte{}
 	unfixedBufLen := 0
+	row := l.row
+	col := l.col
 	var tok *Token
 	for {
 		v, eof := l.read()
@@ -313,9 +302,24 @@ func (l *Lexer) next() (*Token, error) {
 			// When `buf` has unaccepted data and reads the EOF,
 			// the lexer treats the buffered data as an invalid token.
 			if len(buf) > 0 {
-				return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
+				return &Token{
+					ModeID:     mode,
+					ModeName:   modeName,
+					ModeKindID: 0,
+					Row:        row,
+					Col:        col,
+					match:      newByteSequence(buf),
+					Invalid:    true,
+				}, nil
 			}
-			return newEOFToken(mode, modeName), nil
+			return &Token{
+				ModeID:     mode,
+				ModeName:   modeName,
+				ModeKindID: 0,
+				Row:        0,
+				Col:        0,
+				EOF:        true,
+			}, nil
 		}
 		buf = append(buf, v)
 		unfixedBufLen++
@@ -325,13 +329,30 @@ func (l *Lexer) next() (*Token, error) {
 				l.unread(unfixedBufLen)
 				return tok, nil
 			}
-			return newInvalidToken(mode, modeName, newByteSequence(buf)), nil
+			return &Token{
+				ModeID:     mode,
+				ModeName:   modeName,
+				ModeKindID: 0,
+				Row:        row,
+				Col:        col,
+				match:      newByteSequence(buf),
+				Invalid:    true,
+			}, nil
 		}
 		state = nextState
 		modeKindID := spec.DFA.AcceptingStates[state]
 		if modeKindID != 0 {
 			kindID := l.clspec.KindIDs[mode][modeKindID]
-			tok = newToken(mode, modeName, kindID, modeKindID, spec.KindNames[modeKindID], newByteSequence(buf))
+			tok = &Token{
+				ModeID:     mode,
+				ModeName:   modeName,
+				KindID:     kindID,
+				ModeKindID: modeKindID,
+				KindName:   spec.KindNames[modeKindID],
+				Row:        row,
+				Col:        col,
+				match:      newByteSequence(buf),
+			}
 			unfixedBufLen = 0
 		}
 	}
@@ -384,11 +405,38 @@ func (l *Lexer) read() (byte, bool) {
 	if l.srcPtr >= len(l.src) {
 		return 0, true
 	}
+
 	b := l.src[l.srcPtr]
 	l.srcPtr++
+
+	l.prevRow = l.row
+	l.prevCol = l.col
+
+	// Count the token positions.
+	// The driver treats LF as the end of lines and counts columns in code points, not bytes.
+	// To count in code points, we refer to the First Byte column in the Table 3-6.
+	//
+	// Reference:
+	// - [Table 3-6] https://www.unicode.org/versions/Unicode13.0.0/ch03.pdf > Table 3-6.  UTF-8 Bit Distribution
+	if b < 128 {
+		// 0x0A is LF.
+		if b == 0x0A {
+			l.row++
+			l.col = 0
+		} else {
+			l.col++
+		}
+	} else if b>>5 == 6 || b>>4 == 14 || b>>3 == 30 {
+		l.col++
+	}
+
 	return b, false
 }
 
+// You must not call this function consecutively to record the token position correctly.
 func (l *Lexer) unread(n int) {
 	l.srcPtr -= n
+
+	l.row = l.prevRow
+	l.col = l.prevCol
 }

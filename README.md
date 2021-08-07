@@ -70,6 +70,8 @@ The JSON format of tokens that `maleeni lex` command prints is as follows:
 | kind_id      | integer           | An ID of a kind. This is unique among all modes.                                                                                                      |
 | mode_kind_id | integer           | An ID of a lexical kind. This is unique only within a mode. Note that you need to use `KindID` field if you want to identify a kind across all modes. |
 | kind_name    | string            | A name of a lexical kind.                                                                                                                             |
+| row          | integer           | A row number where a lexeme appears.                                                                                                                  |
+| col          | integer           | A column number where a lexeme appears. Note that `col` is counted in code points, not bytes.                                                         |
 | match        | array of integers | A byte sequense of a lexeme.                                                                                                                          |
 | text         | string            | A string representation of a lexeme.                                                                                                                  |
 | eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                       |
