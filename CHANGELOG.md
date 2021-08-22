@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.0
+
+* [893ebf5](https://github.com/nihei9/maleeni/commit/893ebf5524067c778650462b5efd1640fe6b54a7) - Use Go 1.16.
+* [#1](https://github.com/nihei9/maleeni/issues/1), [82efd35](https://github.com/nihei9/maleeni/commit/82efd35e6f99af0eff0430fc32b825d5cb38ac4d) - Add lexeme positions to tokens.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.3.0...v0.4.0)
+
 ## v0.3.0
 
 * [03e3688](https://github.com/nihei9/maleeni/commit/03e3688e3928c88c12107ea734c35281c814e0c0) - Add unique kind IDs to tokens.
