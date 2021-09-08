@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/nihei9/maleeni/driver"
 	"github.com/nihei9/maleeni/spec"
@@ -13,7 +12,6 @@ import (
 )
 
 var lexFlags = struct {
-	debug        *bool
 	source       *string
 	output       *string
 	breakOnError *bool
@@ -32,7 +30,6 @@ your lexical specification that is set passively, lexemes in that mode will not 
 		Args:    cobra.ExactArgs(1),
 		RunE:    runLex,
 	}
-	lexFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
 	lexFlags.source = cmd.Flags().StringP("source", "s", "", "source file path (default stdin)")
 	lexFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	lexFlags.breakOnError = cmd.Flags().BoolP("break-on-error", "b", false, "break lexical analysis with exit status 1 immediately when an error token appears.")
@@ -43,30 +40,6 @@ func runLex(cmd *cobra.Command, args []string) (retErr error) {
 	clspec, err := readCompiledLexSpec(args[0])
 	if err != nil {
 		return fmt.Errorf("Cannot read a compiled lexical specification: %w", err)
-	}
-
-	var opts []driver.LexerOption
-	if *lexFlags.debug {
-		fileName := "maleeni-lex.log"
-		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			return fmt.Errorf("Cannot open the log file %s: %w", fileName, err)
-		}
-		defer f.Close()
-		fmt.Fprintf(f, `maleeni lex starts.
-Date time: %v
----
-`, time.Now().Format(time.RFC3339))
-		defer func() {
-			fmt.Fprintf(f, "---\n")
-			if retErr != nil {
-				fmt.Fprintf(f, "maleeni lex failed: %v\n", retErr)
-			} else {
-				fmt.Fprintf(f, "maleeni lex succeeded.\n")
-			}
-		}()
-
-		opts = append(opts, driver.EnableLogging(f))
 	}
 
 	var lex *driver.Lexer
@@ -80,7 +53,7 @@ Date time: %v
 			defer f.Close()
 			src = f
 		}
-		lex, err = driver.NewLexer(clspec, src, opts...)
+		lex, err = driver.NewLexer(clspec, src)
 		if err != nil {
 			return err
 		}
