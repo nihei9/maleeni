@@ -5,71 +5,60 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
-
-	"github.com/nihei9/maleeni/spec"
 )
 
-type byteSequence []byte
+type ModeID int
 
-func newByteSequence(b []byte) byteSequence {
-	return byteSequence(b)
+func (id ModeID) Int() int {
+	return int(id)
 }
 
-func (s byteSequence) ByteSlice() []byte {
-	return []byte(s)
+type StateID int
+
+func (id StateID) Int() int {
+	return int(id)
 }
 
-func (s byteSequence) String() string {
-	if len(s) <= 0 {
-		return ""
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%X", s[0])
-	for _, d := range s[1:] {
-		fmt.Fprintf(&b, " %X", d)
-	}
-	return b.String()
+type KindID int
+
+func (id KindID) Int() int {
+	return int(id)
 }
 
-func (s byteSequence) GoString() string {
-	return fmt.Sprintf("\"%v\"", s.String())
+type ModeKindID int
+
+func (id ModeKindID) Int() int {
+	return int(id)
 }
 
-func (s byteSequence) MarshalJSON() ([]byte, error) {
-	if len(s) <= 0 {
-		return []byte("[]"), nil
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "[%v", uint8(s[0]))
-	for _, e := range s[1:] {
-		fmt.Fprintf(&b, ", %v", uint8(e))
-	}
-	fmt.Fprintf(&b, "]")
-	return []byte(b.String()), nil
-}
-
-func (s byteSequence) merge(a byteSequence) byteSequence {
-	return append([]byte(s), []byte(a)...)
+type LexSpec interface {
+	InitialMode() ModeID
+	Pop(mode ModeID, modeKind ModeKindID) bool
+	Push(mode ModeID, modeKind ModeKindID) (ModeID, bool)
+	ModeName(mode ModeID) string
+	InitialState(mode ModeID) StateID
+	NextState(mode ModeID, state StateID, v int) (StateID, bool)
+	Accept(mode ModeID, state StateID) (ModeKindID, bool)
+	KindIDAndName(mode ModeID, modeKind ModeKindID) (KindID, string)
 }
 
 // Token representes a token.
 type Token struct {
 	// ModeID is an ID of a lex mode.
-	ModeID spec.LexModeID
+	ModeID ModeID
 
 	// ModeName is a name of a lex mode.
-	ModeName spec.LexModeName
+	ModeName string
 
 	// KindID is an ID of a kind. This is unique among all modes.
-	KindID spec.LexKindID
+	KindID KindID
 
 	// ModeKindID is an ID of a lexical kind. This is unique only within a mode.
 	// Note that you need to use KindID field if you want to identify a kind across all modes.
-	ModeKindID spec.LexModeKindID
+	ModeKindID ModeKindID
 
 	// KindName is a name of a lexical kind.
-	KindName spec.LexKindName
+	KindName string
 
 	// Row is a row number where a lexeme appears.
 	Row int
@@ -78,59 +67,37 @@ type Token struct {
 	// Note that Col is counted in code points, not bytes.
 	Col int
 
+	// Lexeme is a byte sequence matched a pattern of a lexical specification.
+	Lexeme []byte
+
 	// When this field is true, it means the token is the EOF token.
 	EOF bool
 
 	// When this field is true, it means the token is an error token.
 	Invalid bool
-
-	// match is a byte sequence matched a pattern of a lexical specification.
-	match byteSequence
-}
-
-func (t *Token) String() string {
-	if t.Invalid {
-		return fmt.Sprintf("!{mode id: %v, mode name: %v, row: %v, col: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.Row, t.Col, t.Text(), t.Match())
-	}
-	if t.EOF {
-		return fmt.Sprintf("{kind name: eof, row: %v, col: %v}", t.Row, t.Col)
-	}
-	return fmt.Sprintf("{mode id: %v, mode name: %v, kind id: %v, mode kind id: %v, kind name: %v, row: %v, col: %v, text: %v, byte: %v}", t.ModeID, t.ModeName, t.KindID, t.ModeKindID, t.KindName, t.Row, t.Col, t.Text(), t.Match())
-}
-
-// Match returns a byte slice matched a pattern of a lexical specification.
-func (t *Token) Match() []byte {
-	return t.match.ByteSlice()
-}
-
-// Text returns a string representation of a matched byte sequence.
-func (t *Token) Text() string {
-	return string(t.Match())
 }
 
 func (t *Token) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		ModeID     int          `json:"mode_id"`
-		ModeName   string       `json:"mode_name"`
-		KindID     int          `json:"kind_id"`
-		ModeKindID int          `json:"mode_kind_id"`
-		KindName   string       `json:"kind_name"`
-		Row        int          `json:"row"`
-		Col        int          `json:"col"`
-		Match      byteSequence `json:"match"`
-		Text       string       `json:"text"`
-		EOF        bool         `json:"eof"`
-		Invalid    bool         `json:"invalid"`
+		ModeID     int    `json:"mode_id"`
+		ModeName   string `json:"mode_name"`
+		KindID     int    `json:"kind_id"`
+		ModeKindID int    `json:"mode_kind_id"`
+		KindName   string `json:"kind_name"`
+		Row        int    `json:"row"`
+		Col        int    `json:"col"`
+		Lexeme     string `json:"lexeme"`
+		EOF        bool   `json:"eof"`
+		Invalid    bool   `json:"invalid"`
 	}{
 		ModeID:     t.ModeID.Int(),
-		ModeName:   t.ModeName.String(),
+		ModeName:   t.ModeName,
 		KindID:     t.KindID.Int(),
 		ModeKindID: t.ModeKindID.Int(),
-		KindName:   t.KindName.String(),
+		KindName:   t.KindName,
 		Row:        t.Row,
 		Col:        t.Col,
-		Match:      t.match,
-		Text:       t.Text(),
+		Lexeme:     string(t.Lexeme),
 		EOF:        t.EOF,
 		Invalid:    t.Invalid,
 	})
@@ -146,7 +113,7 @@ func DisableModeTransition() LexerOption {
 }
 
 type Lexer struct {
-	clspec          *spec.CompiledLexSpec
+	spec            LexSpec
 	src             []byte
 	srcPtr          int
 	row             int
@@ -154,23 +121,23 @@ type Lexer struct {
 	prevRow         int
 	prevCol         int
 	tokBuf          []*Token
-	modeStack       []spec.LexModeID
+	modeStack       []ModeID
 	passiveModeTran bool
 }
 
-func NewLexer(clspec *spec.CompiledLexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) {
+func NewLexer(spec LexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) {
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
 		return nil, err
 	}
 	l := &Lexer{
-		clspec: clspec,
+		spec:   spec,
 		src:    b,
 		srcPtr: 0,
 		row:    0,
 		col:    0,
-		modeStack: []spec.LexModeID{
-			clspec.InitialModeID,
+		modeStack: []ModeID{
+			spec.InitialMode(),
 		},
 		passiveModeTran: false,
 	}
@@ -207,7 +174,7 @@ func (l *Lexer) Next() (*Token, error) {
 		if !tok.Invalid {
 			break
 		}
-		errTok.match = errTok.match.merge(tok.match)
+		errTok.Lexeme = append(errTok.Lexeme, tok.Lexeme...)
 	}
 	l.tokBuf = append(l.tokBuf, tok)
 
@@ -225,15 +192,14 @@ func (l *Lexer) nextAndTransition() (*Token, error) {
 	if l.passiveModeTran {
 		return tok, nil
 	}
-	spec := l.clspec.Specs[l.Mode()]
-	if spec.Pop[tok.ModeKindID] == 1 {
+	mode := l.Mode()
+	if l.spec.Pop(mode, tok.ModeKindID) {
 		err := l.PopMode()
 		if err != nil {
 			return nil, err
 		}
 	}
-	mode := spec.Push[tok.ModeKindID]
-	if !mode.IsNil() {
+	if mode, ok := l.spec.Push(mode, tok.ModeKindID); ok {
 		l.PushMode(mode)
 	}
 	// The checking length of the mode stack must be at after pop and push operations
@@ -249,9 +215,8 @@ func (l *Lexer) nextAndTransition() (*Token, error) {
 
 func (l *Lexer) next() (*Token, error) {
 	mode := l.Mode()
-	modeName := l.clspec.ModeNames[mode]
-	spec := l.clspec.Specs[mode]
-	state := spec.DFA.InitialStateID
+	modeName := l.spec.ModeName(mode)
+	state := l.spec.InitialState(mode)
 	buf := []byte{}
 	unfixedBufLen := 0
 	row := l.row
@@ -271,9 +236,9 @@ func (l *Lexer) next() (*Token, error) {
 					ModeID:     mode,
 					ModeName:   modeName,
 					ModeKindID: 0,
+					Lexeme:     buf,
 					Row:        row,
 					Col:        col,
-					match:      newByteSequence(buf),
 					Invalid:    true,
 				}, nil
 			}
@@ -288,7 +253,7 @@ func (l *Lexer) next() (*Token, error) {
 		}
 		buf = append(buf, v)
 		unfixedBufLen++
-		nextState, ok := l.lookupNextState(mode, state, int(v))
+		nextState, ok := l.spec.NextState(mode, state, int(v))
 		if !ok {
 			if tok != nil {
 				l.unread(unfixedBufLen)
@@ -298,62 +263,35 @@ func (l *Lexer) next() (*Token, error) {
 				ModeID:     mode,
 				ModeName:   modeName,
 				ModeKindID: 0,
+				Lexeme:     buf,
 				Row:        row,
 				Col:        col,
-				match:      newByteSequence(buf),
 				Invalid:    true,
 			}, nil
 		}
 		state = nextState
-		modeKindID := spec.DFA.AcceptingStates[state]
-		if modeKindID != 0 {
-			kindID := l.clspec.KindIDs[mode][modeKindID]
+		if modeKindID, ok := l.spec.Accept(mode, state); ok {
+			kindID, kindName := l.spec.KindIDAndName(mode, modeKindID)
 			tok = &Token{
 				ModeID:     mode,
 				ModeName:   modeName,
 				KindID:     kindID,
 				ModeKindID: modeKindID,
-				KindName:   spec.KindNames[modeKindID],
+				KindName:   kindName,
+				Lexeme:     buf,
 				Row:        row,
 				Col:        col,
-				match:      newByteSequence(buf),
 			}
 			unfixedBufLen = 0
 		}
 	}
 }
 
-func (l *Lexer) lookupNextState(mode spec.LexModeID, state spec.StateID, v int) (spec.StateID, bool) {
-	switch l.clspec.CompressionLevel {
-	case 2:
-		tab := l.clspec.Specs[mode].DFA.Transition
-		rowNum := tab.RowNums[state]
-		d := tab.UniqueEntries.RowDisplacement[rowNum]
-		if tab.UniqueEntries.Bounds[d+v] != rowNum {
-			return tab.UniqueEntries.EmptyValue, false
-		}
-		return tab.UniqueEntries.Entries[d+v], true
-	case 1:
-		tab := l.clspec.Specs[mode].DFA.Transition
-		next := tab.UncompressedUniqueEntries[tab.RowNums[state]*tab.OriginalColCount+v]
-		if next == spec.StateIDNil {
-			return spec.StateIDNil, false
-		}
-		return next, true
-	}
-	modeSpec := l.clspec.Specs[mode]
-	next := modeSpec.DFA.UncompressedTransition[state.Int()*modeSpec.DFA.ColCount+v]
-	if next == spec.StateIDNil {
-		return spec.StateIDNil, false
-	}
-	return next, true
-}
-
-func (l *Lexer) Mode() spec.LexModeID {
+func (l *Lexer) Mode() ModeID {
 	return l.modeStack[len(l.modeStack)-1]
 }
 
-func (l *Lexer) PushMode(mode spec.LexModeID) {
+func (l *Lexer) PushMode(mode ModeID) {
 	l.modeStack = append(l.modeStack, mode)
 }
 

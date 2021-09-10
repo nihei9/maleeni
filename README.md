@@ -47,18 +47,18 @@ If you want to make sure that the lexical specification behaves as expected, you
 ⚠️ An encoding that `maleeni lex` and the driver can handle is only UTF-8.
 
 ```sh
-$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_id, .kind_name, .text, .eof] | @csv'
-2,"word","The",false
-1,"whitespace"," ",false
-2,"word","truth",false
-1,"whitespace"," ",false
-2,"word","is",false
-1,"whitespace"," ",false
-2,"word","out",false
-1,"whitespace"," ",false
-2,"word","there",false
-3,"punctuation",".",false
-0,"","",true
+$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_name, .lexeme, .eof] | @csv'
+"word","The",false
+"whitespace"," ",false
+"word","truth",false
+"whitespace"," ",false
+"word","is",false
+"whitespace"," ",false
+"word","out",false
+"whitespace"," ",false
+"word","there",false
+"punctuation",".",false
+"","",true
 ```
 
 The JSON format of tokens that `maleeni lex` command prints is as follows:
@@ -72,8 +72,7 @@ The JSON format of tokens that `maleeni lex` command prints is as follows:
 | kind_name    | string            | A name of a lexical kind.                                                                                                                             |
 | row          | integer           | A row number where a lexeme appears.                                                                                                                  |
 | col          | integer           | A column number where a lexeme appears. Note that `col` is counted in code points, not bytes.                                                         |
-| match        | array of integers | A byte sequense of a lexeme.                                                                                                                          |
-| text         | string            | A string representation of a lexeme.                                                                                                                  |
+| lexeme       | array of integers | A byte sequense of a lexeme.                                                                                                                          |
 | eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                       |
 | invalid      | bool              | When this field is `true`, it means the token is an error token.                                                                                      |
 
@@ -336,7 +335,7 @@ For instance, you can define a subset of [the string literal of golang](https://
 In the above specification, when the `"` mark appears in default mode (it's the initial mode), the driver transitions to the `string` mode and interprets character sequences (`char_seq`) and escape sequences (`escaped_char`). When the `"` mark appears the next time, the driver returns to the `default` mode.
 
 ```sh
-$ echo -n '"foo\nbar"foo' | maleeni lex go-string-cspec.json | jq -r '[.mode_name, .kind_name, .text, .eof] | @csv'
+$ echo -n '"foo\nbar"foo' | maleeni lex go-string-cspec.json | jq -r '[.mode_name, .kind_name, .lexeme, .eof] | @csv'
 "default","string_open","""",false
 "string","char_seq","foo",false
 "string","escaped_char","\n",false

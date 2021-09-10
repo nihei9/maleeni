@@ -53,7 +53,7 @@ func runLex(cmd *cobra.Command, args []string) (retErr error) {
 			defer f.Close()
 			src = f
 		}
-		lex, err = driver.NewLexer(clspec, src)
+		lex, err = driver.NewLexer(driver.NewLexSpec(clspec), src)
 		if err != nil {
 			return err
 		}

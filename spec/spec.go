@@ -24,8 +24,8 @@ func (id LexKindID) Int() int {
 type LexModeKindID int
 
 const (
-	LexModeKindIDNil = LexKindID(0)
-	LexModeKindIDMin = LexKindID(1)
+	LexModeKindIDNil = LexModeKindID(0)
+	LexModeKindIDMin = LexModeKindID(1)
 )
 
 func (id LexModeKindID) Int() int {
