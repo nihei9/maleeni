@@ -1,16 +1,26 @@
 # maleeni
 
-maleeni provides a command that generates a portable DFA for lexical analysis and a driver for golang. maleeni also provides a command to perform lexical analysis to allow easy debugging of your lexical specification.
+maleeni is a lexer generator for golang. maleeni also provides a command to perform lexical analysis to allow easy debugging of your lexical specification.
 
 [![Test](https://github.com/nihei9/maleeni/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/maleeni/actions/workflows/test.yml)
 
 ## Installation
 
+Compiler:
+
 ```sh
 $ go install github.com/nihei9/maleeni/cmd/maleeni@latest
 ```
 
+Code Generator:
+
+```sh
+$ go install github.com/nihei9/maleeni/cmd/maleeni-go@latest
+```
+
 ## Usage
+
+### 1. Define your lexical specification
 
 First, define your lexical specification in JSON format. As an example, let's write the definitions of whitespace, words, and punctuation.
 
@@ -35,14 +45,17 @@ First, define your lexical specification in JSON format. As an example, let's wr
 
 Save the above specification to a file in UTF-8. In this explanation, the file name is lexspec.json.
 
+### 2. Compile the lexical specification
+
 Next, generate a DFA from the lexical specification using `maleeni compile` command.
 
 ```sh
 $ maleeni compile -l lexspec.json -o clexspec.json
 ```
 
-If you want to make sure that the lexical specification behaves as expected, you can use `maleeni lex` command to try lexical analysis without having to implement a driver.
-`maleeni lex` command outputs tokens in JSON format. For simplicity, print significant fields of the tokens in CSV format using jq command.
+### 3. Debug (Optional)
+
+If you want to make sure that the lexical specification behaves as expected, you can use `maleeni lex` command to try lexical analysis without having to generate a lexer. `maleeni lex` command outputs tokens in JSON format. For simplicity, print significant fields of the tokens in CSV format using jq command.
 
 ⚠️ An encoding that `maleeni lex` and the driver can handle is only UTF-8.
 
@@ -76,48 +89,69 @@ The JSON format of tokens that `maleeni lex` command prints is as follows:
 | eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                       |
 | invalid      | bool              | When this field is `true`, it means the token is an error token.                                                                                      |
 
-When using the driver, please import `github.com/nihei9/maleeni/driver` and `github.com/nihei9/maleeni/spec` package.
-You can use the driver easily in the following way:
+### 4. Generate the lexer
+
+Using `maleeni-go` command, you can generate a source code of the lexer to recognize your lexical specification.
+
+```sh
+$ maleeni-go clexspec.json > lexer.go
+```
+
+The above command generates the lexer and saves it to `lexer.go` file. To use the lexer, you need to call `NewLexer` function defined in `lexer.go`. The following code is a simple example. In this example, the lexer reads a source code from stdin and writes the result, tokens, to stdout.
 
 ```go
-// Read your lexical specification file.
-f, err := os.Open(path)
-if err != nil {
-    // error handling
-}
-data, err := ioutil.ReadAll(f)
-if err != nil {
-    // error handling
-}
-clexspec := &spec.CompiledLexSpec{}
-err = json.Unmarshal(data, clexspec)
-if err != nil {
-    // error handling
-}
+package main
 
-// Generate a lexer.
-lex, err := driver.NewLexer(clexspec, src)
-if err != nil {
-    // error handling
-}
+import (
+    "fmt"
+    "os"
+)
 
-// Perform lexical analysis.
-for {
-    tok, err := lex.Next()
+func main() {
+    lex, err := NewLexer(NewLexSpec(), os.Stdin)
     if err != nil {
-        // error handling
-    }
-    if tok.Invalid {
-        // An error token appeared.
-        // error handling
-    }
-    if tok.EOF {
-        // The EOF token appeared.
-        break
+        fmt.Fprintln(os.Stderr, err)
+        os.Exit(1)
     }
 
-    // Do something using `tok`.
+    for {
+        tok, err := lex.Next()
+        if err != nil {
+            fmt.Fprintln(os.Stderr, err)
+            os.Exit(1)
+        }
+        if tok.EOF {
+            break
+        }
+        if tok.Invalid {
+            fmt.Printf("invalid: '%v'\n", string(tok.Lexeme))
+        } else {
+            fmt.Printf("valid: %v: '%v'\n", tok.KindName, string(tok.Lexeme))
+        }
+    }
 }
+```
+
+Please save the above source code to `main.go` and create a directory structure like the one below.
+
+```
+/project_root
+├── lexer.go ... Lexer generated from the compiled lexical specification (the result of `maleeni-go`).
+└── main.go .... Caller of the lexer.
+```
+
+Now, you can perform the lexical analysis.
+
+```sh
+$ echo -n 'I want to believe.' | go run main.go lexer.go
+valid: word: 'I'
+valid: whitespace: ' '
+valid: word: 'want'
+valid: whitespace: ' '
+valid: word: 'to'
+valid: whitespace: ' '
+valid: word: 'believe'
+valid: punctuation: '.'
 ```
 
 ## More Practical Usage
