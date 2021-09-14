@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.0
+
+* [6332aaf](https://github.com/nihei9/maleeni/commit/6332aaf0b6caf7e23d7b4ca59c06f193bfbf7329) - Remove `--debug` option from `maleeni lex` command.
+* [f691b5c](https://github.com/nihei9/maleeni/commit/f691b5cb74492b97cc4adc9d02bf39633e768503), [96a555a](https://github.com/nihei9/maleeni/commit/96a555a00f000704c618c226485fa6d87ce66d9d) - Add `maleeni-go` command to generate a lexer that recognizes a specific lexical specification.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.4.0...v0.5.0)
+
 ## v0.4.0
 
 * [893ebf5](https://github.com/nihei9/maleeni/commit/893ebf5524067c778650462b5efd1640fe6b54a7) - Use Go 1.16.
