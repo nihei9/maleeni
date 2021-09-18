@@ -227,7 +227,7 @@ func TestLexer_Next(t *testing.T) {
 					// maleeni cannot handle the null character in patterns because compiler.lexer,
 					// specifically read() and restore(), recognizes the null characters as that a symbol doesn't exist.
 					// If a pattern needs a null character, use code point expression \u{0000}.
-					newLexEntryDefaultNOP("1ByteChar", "[\x01-\x7f]"),
+					newLexEntryDefaultNOP("char1Byte", "[\x01-\x7f]"),
 				},
 			},
 			src: string([]byte{
@@ -237,10 +237,10 @@ func TestLexer_Next(t *testing.T) {
 				0x7f,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "1ByteChar", []byte{0x01}),
-				newTokenDefault(1, 1, "1ByteChar", []byte{0x02}),
-				newTokenDefault(1, 1, "1ByteChar", []byte{0x7e}),
-				newTokenDefault(1, 1, "1ByteChar", []byte{0x7f}),
+				newTokenDefault(1, 1, "char1Byte", []byte{0x01}),
+				newTokenDefault(1, 1, "char1Byte", []byte{0x02}),
+				newTokenDefault(1, 1, "char1Byte", []byte{0x7e}),
+				newTokenDefault(1, 1, "char1Byte", []byte{0x7f}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -248,7 +248,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 2 byte characters
-					newLexEntryDefaultNOP("2ByteChar", "[\xc2\x80-\xdf\xbf]"),
+					newLexEntryDefaultNOP("char2Byte", "[\xc2\x80-\xdf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -258,10 +258,10 @@ func TestLexer_Next(t *testing.T) {
 				0xdf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "2ByteChar", []byte{0xc2, 0x80}),
-				newTokenDefault(1, 1, "2ByteChar", []byte{0xc2, 0x81}),
-				newTokenDefault(1, 1, "2ByteChar", []byte{0xdf, 0xbe}),
-				newTokenDefault(1, 1, "2ByteChar", []byte{0xdf, 0xbf}),
+				newTokenDefault(1, 1, "char2Byte", []byte{0xc2, 0x80}),
+				newTokenDefault(1, 1, "char2Byte", []byte{0xc2, 0x81}),
+				newTokenDefault(1, 1, "char2Byte", []byte{0xdf, 0xbe}),
+				newTokenDefault(1, 1, "char2Byte", []byte{0xdf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -269,14 +269,14 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
-					newLexEntryDefaultNOP("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\x80]"),
+					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xa0\x80]"),
 				},
 			},
 			src: string([]byte{
 				0xe0, 0xa0, 0x80,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x80}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -284,7 +284,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first two bytes are the same.
-					newLexEntryDefaultNOP("3ByteChar", "[\xe0\xa0\x80-\xe0\xa0\xbf]"),
+					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xa0\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -294,10 +294,10 @@ func TestLexer_Next(t *testing.T) {
 				0xe0, 0xa0, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -305,7 +305,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
-					newLexEntryDefaultNOP("3ByteChar", "[\xe0\xa0\x80-\xe0\xbf\xbf]"),
+					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -315,10 +315,10 @@ func TestLexer_Next(t *testing.T) {
 				0xe0, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xbf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -326,7 +326,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 3 byte characters
-					newLexEntryDefaultNOP("3ByteChar", "[\xe0\xa0\x80-\xef\xbf\xbf]"),
+					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xef\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -348,22 +348,22 @@ func TestLexer_Next(t *testing.T) {
 				0xef, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xa0, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe0, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe1, 0x80, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xe1, 0x80, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xec, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xec, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xed, 0x80, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xed, 0x80, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xed, 0x9f, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xed, 0x9f, 0xbf}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xee, 0x80, 0x80}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xee, 0x80, 0x81}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xef, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "3ByteChar", []byte{0xef, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xa0, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe0, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe1, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xe1, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xec, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xec, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xed, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xed, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xed, 0x9f, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xed, 0x9f, 0xbf}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xee, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xee, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xef, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char3Byte", []byte{0xef, 0xbf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -371,14 +371,14 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
-					newLexEntryDefaultNOP("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\x80]"),
+					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\x80\x80]"),
 				},
 			},
 			src: string([]byte{
 				0xf0, 0x90, 0x80, 0x80,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x80}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -386,7 +386,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first 3 bytes are the same.
-					newLexEntryDefaultNOP("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\x80\xbf]"),
+					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\x80\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -396,10 +396,10 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0x90, 0x80, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -407,7 +407,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first 2 bytes are the same.
-					newLexEntryDefaultNOP("4ByteChar", "[\xf0\x90\x80\x80-\xf0\x90\xbf\xbf]"),
+					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -417,10 +417,10 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0x90, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0xbf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -428,7 +428,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
-					newLexEntryDefaultNOP("4ByteChar", "[\xf0\x90\x80\x80-\xf0\xbf\xbf\xbf]"),
+					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\xbf\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -438,10 +438,10 @@ func TestLexer_Next(t *testing.T) {
 				0xf0, 0xbf, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0xbf, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0xbf, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0xbf, 0xbf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -449,7 +449,7 @@ func TestLexer_Next(t *testing.T) {
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
 					// all 4 byte characters
-					newLexEntryDefaultNOP("4ByteChar", "[\xf0\x90\x80\x80-\xf4\x8f\xbf\xbf]"),
+					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf4\x8f\xbf\xbf]"),
 				},
 			},
 			src: string([]byte{
@@ -467,18 +467,18 @@ func TestLexer_Next(t *testing.T) {
 				0xf4, 0x8f, 0xbf, 0xbf,
 			}),
 			tokens: []*Token{
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0x90, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf0, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf1, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf1, 0x80, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf3, 0xbf, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf3, 0xbf, 0xbf, 0xbf}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf4, 0x80, 0x80, 0x80}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf4, 0x80, 0x80, 0x81}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf4, 0x8f, 0xbf, 0xbe}),
-				newTokenDefault(1, 1, "4ByteChar", []byte{0xf4, 0x8f, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0x90, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0xbf, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf0, 0xbf, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf1, 0x80, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf1, 0x80, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf3, 0xbf, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf3, 0xbf, 0xbf, 0xbf}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf4, 0x80, 0x80, 0x80}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf4, 0x80, 0x80, 0x81}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf4, 0x8f, 0xbf, 0xbe}),
+				newTokenDefault(1, 1, "char4Byte", []byte{0xf4, 0x8f, 0xbf, 0xbf}),
 				newEOFTokenDefault(),
 			},
 		},
@@ -497,18 +497,18 @@ func TestLexer_Next(t *testing.T) {
 		{
 			lspec: &spec.LexSpec{
 				Entries: []*spec.LexEntry{
-					newLexEntryDefaultNOP("1ByteChar", "\\u{006E}"),
-					newLexEntryDefaultNOP("2ByteChar", "\\u{03BD}"),
-					newLexEntryDefaultNOP("3ByteChar", "\\u{306B}"),
-					newLexEntryDefaultNOP("4ByteChar", "\\u{01F638}"),
+					newLexEntryDefaultNOP("char1Byte", "\\u{006E}"),
+					newLexEntryDefaultNOP("char2Byte", "\\u{03BD}"),
+					newLexEntryDefaultNOP("char3Byte", "\\u{306B}"),
+					newLexEntryDefaultNOP("char4Byte", "\\u{01F638}"),
 				},
 			},
 			src: "nνに😸",
 			tokens: []*Token{
-				newTokenDefault(1, 1, "1ByteChar", []byte{0x6E}),
-				newTokenDefault(2, 2, "2ByteChar", []byte{0xCE, 0xBD}),
-				newTokenDefault(3, 3, "3ByteChar", []byte{0xE3, 0x81, 0xAB}),
-				newTokenDefault(4, 4, "4ByteChar", []byte{0xF0, 0x9F, 0x98, 0xB8}),
+				newTokenDefault(1, 1, "char1Byte", []byte{0x6E}),
+				newTokenDefault(2, 2, "char2Byte", []byte{0xCE, 0xBD}),
+				newTokenDefault(3, 3, "char3Byte", []byte{0xE3, 0x81, 0xAB}),
+				newTokenDefault(4, 4, "char4Byte", []byte{0xF0, 0x9F, 0x98, 0xB8}),
 				newEOFTokenDefault(),
 			},
 		},
