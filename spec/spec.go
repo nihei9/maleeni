@@ -157,10 +157,16 @@ func (e *LexEntry) validate() error {
 }
 
 type LexSpec struct {
+	Name    string      `json:"name"`
 	Entries []*LexEntry `json:"entries"`
 }
 
 func (s *LexSpec) Validate() error {
+	err := validateIdentifier(s.Name)
+	if err != nil {
+		return fmt.Errorf("invalid specification name: %v", err)
+	}
+
 	if len(s.Entries) <= 0 {
 		return fmt.Errorf("the lexical specification must have at least one entry")
 	}
@@ -364,6 +370,7 @@ type CompiledLexModeSpec struct {
 }
 
 type CompiledLexSpec struct {
+	Name             string                 `json:"name"`
 	InitialModeID    LexModeID              `json:"initial_mode_id"`
 	ModeNames        []LexModeName          `json:"mode_names"`
 	KindNames        []LexKindName          `json:"kind_names"`

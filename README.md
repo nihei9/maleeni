@@ -26,6 +26,7 @@ First, define your lexical specification in JSON format. As an example, let's wr
 
 ```json
 {
+    "name": "statement",
     "entries": [
         {
             "kind": "whitespace",
@@ -43,14 +44,14 @@ First, define your lexical specification in JSON format. As an example, let's wr
 }
 ```
 
-Save the above specification to a file in UTF-8. In this explanation, the file name is lexspec.json.
+Save the above specification to a file in UTF-8. In this explanation, the file name is `statement.json`.
 
 ### 2. Compile the lexical specification
 
 Next, generate a DFA from the lexical specification using `maleeni compile` command.
 
 ```sh
-$ maleeni compile -l lexspec.json -o clexspec.json
+$ maleeni compile -l statement.json -o statementc.json
 ```
 
 ### 3. Debug (Optional)
@@ -60,7 +61,7 @@ If you want to make sure that the lexical specification behaves as expected, you
 ⚠️ An encoding that `maleeni lex` and the driver can handle is only UTF-8.
 
 ```sh
-$ echo -n 'The truth is out there.' | maleeni lex clexspec.json | jq -r '[.kind_name, .lexeme, .eof] | @csv'
+$ echo -n 'The truth is out there.' | maleeni lex statementc.json | jq -r '[.kind_name, .lexeme, .eof] | @csv'
 "word","The",false
 "whitespace"," ",false
 "word","truth",false
@@ -94,10 +95,10 @@ The JSON format of tokens that `maleeni lex` command prints is as follows:
 Using `maleeni-go` command, you can generate a source code of the lexer to recognize your lexical specification.
 
 ```sh
-$ maleeni-go clexspec.json > lexer.go
+$ maleeni-go statementc.json
 ```
 
-The above command generates the lexer and saves it to `lexer.go` file. To use the lexer, you need to call `NewLexer` function defined in `lexer.go`. The following code is a simple example. In this example, the lexer reads a source code from stdin and writes the result, tokens, to stdout.
+The above command generates the lexer and saves it to `statement_lexer.go` file. By default, the file name will be `{spec name}_lexer.json`. To use the lexer, you need to call `NewLexer` function defined in `statement_lexer.go`. The following code is a simple example. In this example, the lexer reads a source code from stdin and writes the result, tokens, to stdout.
 
 ```go
 package main
@@ -136,14 +137,14 @@ Please save the above source code to `main.go` and create a directory structure 
 
 ```
 /project_root
-├── lexer.go ... Lexer generated from the compiled lexical specification (the result of `maleeni-go`).
-└── main.go .... Caller of the lexer.
+├── statement_lexer.go ... Lexer generated from the compiled lexical specification (the result of `maleeni-go`).
+└── main.go .............. Caller of the lexer.
 ```
 
 Now, you can perform the lexical analysis.
 
 ```sh
-$ echo -n 'I want to believe.' | go run main.go lexer.go
+$ echo -n 'I want to believe.' | go run main.go statement_lexer.go
 valid: word: 'I'
 valid: whitespace: ' '
 valid: word: 'want'
@@ -164,8 +165,9 @@ The lexical specification format to be passed to `maleeni compile` command is as
 
 top level object:
 
-| Field   | Type                   | Nullable | Description                                                                                                           |
-|---------|------------------------|----------|-----------------------------------------------------------------------------------------------------------------------|
+| Field   | Type                   | Nullable | Description                                                                                                               |
+|---------|------------------------|----------|---------------------------------------------------------------------------------------------------------------------------|
+| name    | string                 | false    | A specification name.                                                                                                     |
 | entries | array of entry objects | false    | An array of entries sorted by priority. The first element has the highest priority, and the last has the lowest priority. |
 
 entry object:
@@ -292,6 +294,7 @@ For instance, you can define [an identifier of golang](https://golang.org/ref/sp
 
 ```json
 {
+    "name": "id",
     "entries": [
         {
             "fragment": true,
@@ -326,6 +329,7 @@ For instance, you can define a subset of [the string literal of golang](https://
 
 ```json
 {
+    "name": "string",
     "entries": [
         {
             "kind": "string_open",
@@ -369,7 +373,7 @@ For instance, you can define a subset of [the string literal of golang](https://
 In the above specification, when the `"` mark appears in default mode (it's the initial mode), the driver transitions to the `string` mode and interprets character sequences (`char_seq`) and escape sequences (`escaped_char`). When the `"` mark appears the next time, the driver returns to the `default` mode.
 
 ```sh
-$ echo -n '"foo\nbar"foo' | maleeni lex go-string-cspec.json | jq -r '[.mode_name, .kind_name, .lexeme, .eof] | @csv'
+$ echo -n '"foo\nbar"foo' | maleeni lex stringc.json | jq -r '[.mode_name, .kind_name, .lexeme, .eof] | @csv'
 "default","string_open","""",false
 "string","char_seq","foo",false
 "string","escaped_char","\n",false

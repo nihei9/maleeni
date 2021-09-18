@@ -103,6 +103,7 @@ func TestLexer_Next(t *testing.T) {
 	}{
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "(a|b)*abb"),
 					newLexEntryDefaultNOP("t2", " +"),
@@ -126,6 +127,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "b?a+"),
 					newLexEntryDefaultNOP("t2", "(ab)?(cd)+"),
@@ -154,6 +156,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "."),
 				},
@@ -198,6 +201,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "[ab.*+?|()[\\]]"),
 				},
@@ -220,6 +224,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// all 1 byte characters except null character (U+0000)
 					//
@@ -246,6 +251,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// all 2 byte characters
 					newLexEntryDefaultNOP("char2Byte", "[\xc2\x80-\xdf\xbf]"),
@@ -267,6 +273,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
 					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xa0\x80]"),
@@ -282,6 +289,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// The first two bytes are the same.
 					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xa0\xbf]"),
@@ -303,6 +311,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
 					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xe0\xbf\xbf]"),
@@ -324,6 +333,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// all 3 byte characters
 					newLexEntryDefaultNOP("char3Byte", "[\xe0\xa0\x80-\xef\xbf\xbf]"),
@@ -369,6 +379,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// All bytes are the same.
 					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\x80\x80]"),
@@ -384,6 +395,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// The first 3 bytes are the same.
 					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\x80\xbf]"),
@@ -405,6 +417,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// The first 2 bytes are the same.
 					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\x90\xbf\xbf]"),
@@ -426,6 +439,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// The first byte are the same.
 					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf0\xbf\xbf\xbf]"),
@@ -447,6 +461,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// all 4 byte characters
 					newLexEntryDefaultNOP("char4Byte", "[\xf0\x90\x80\x80-\xf4\x8f\xbf\xbf]"),
@@ -484,6 +499,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("NonNumber", "[^0-9]+[0-9]"),
 				},
@@ -496,6 +512,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("char1Byte", "\\u{006E}"),
 					newLexEntryDefaultNOP("char2Byte", "\\u{03BD}"),
@@ -514,6 +531,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("codePointsAlt", "[\\u{006E}\\u{03BD}\\u{306B}\\u{01F638}]"),
 				},
@@ -529,6 +547,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "\\f{a2c}\\f{d2f}+"),
 					newLexEntryFragment("a2c", "abc"),
@@ -544,6 +563,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "(\\f{a2c}|\\f{d2f})+"),
 					newLexEntryFragment("a2c", "abc"),
@@ -558,6 +578,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("t1", "\\f{a2c_or_d2f}+"),
 					newLexEntryFragment("a2c_or_d2f", "\\f{a2c}|\\f{d2f}"),
@@ -573,6 +594,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("white_space", ` *`),
 					newLexEntry([]string{"default"}, "string_open", `"`, "string", false),
@@ -598,6 +620,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					// `white_space` is enabled in multiple modes.
 					newLexEntry([]string{"default", "state_a", "state_b"}, "white_space", ` *`, "", false),
@@ -623,6 +646,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntry([]string{"default", "mode_1", "mode_2"}, "white_space", ` *`, "", false),
 					newLexEntry([]string{"default"}, "char", `.`, "", false),
@@ -671,6 +695,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntry([]string{"default", "mode_1", "mode_2"}, "white_space", ` *`, "", false),
 					newLexEntry([]string{"default"}, "char", `.`, "", false),
@@ -710,6 +735,7 @@ func TestLexer_Next(t *testing.T) {
 		},
 		{
 			lspec: &spec.LexSpec{
+				Name: "test",
 				Entries: []*spec.LexEntry{
 					newLexEntryDefaultNOP("dot", spec.EscapePattern(`.`)),
 					newLexEntryDefaultNOP("star", spec.EscapePattern(`*`)),
@@ -778,6 +804,7 @@ func TestLexer_Next(t *testing.T) {
 
 func TestLexer_Next_WithPosition(t *testing.T) {
 	lspec := &spec.LexSpec{
+		Name: "test",
 		Entries: []*spec.LexEntry{
 			newLexEntryDefaultNOP("newline", `\u{000A}+`),
 			newLexEntryDefaultNOP("any", `.`),

@@ -1,13 +1,13 @@
 package driver
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
-	"os"
 	"strings"
 	"text/template"
 
@@ -17,19 +17,19 @@ import (
 //go:embed lexer.go
 var lexerCoreSrc string
 
-func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
+func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 	var lexerSrc string
 	{
 		fset := token.NewFileSet()
 		f, err := parser.ParseFile(fset, "lexer.go", lexerCoreSrc, parser.ParseComments)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var b strings.Builder
 		err = format.Node(&b, fset, f)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		lexerSrc = b.String()
@@ -100,7 +100,7 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
 	{
 		t, err := template.New("").Funcs(genTemplateFuncs(clspec)).Parse(lexSpecTemplate)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var b strings.Builder
@@ -112,7 +112,7 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
 			"compressionLevel": clspec.CompressionLevel,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		specSrc = b.String()
@@ -136,7 +136,7 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
 
 		t, err := template.New("").Parse(tmpl)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var b strings.Builder
@@ -149,7 +149,7 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
 			"specSrc":      specSrc,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		src = b.String()
@@ -158,12 +158,18 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) error {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	f.Name = ast.NewIdent(pkgName)
 
-	return format.Node(os.Stdout, fset, f)
+	var b bytes.Buffer
+	err = format.Node(&b, fset, f)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }
 
 const lexSpecTemplate = `

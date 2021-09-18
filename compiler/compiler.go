@@ -106,6 +106,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}
 
 	return &spec.CompiledLexSpec{
+		Name:             lexspec.Name,
 		InitialModeID:    spec.LexModeIDDefault,
 		ModeNames:        modeNames,
 		KindNames:        kindNames,

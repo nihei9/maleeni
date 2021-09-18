@@ -18,6 +18,7 @@ func TestCompile(t *testing.T) {
 			Caption: "allow duplicates names between fragments and non-fragments",
 			Spec: `
 {
+    "name": "test",
     "entries": [
         {
             "kind": "a2z",
@@ -36,6 +37,7 @@ func TestCompile(t *testing.T) {
 			Caption: "don't allow duplicates names in non-fragments",
 			Spec: `
 {
+    "name": "test",
     "entries": [
         {
             "kind": "a2z",
@@ -54,6 +56,7 @@ func TestCompile(t *testing.T) {
 			Caption: "don't allow duplicates names in fragments",
 			Spec: `
 {
+    "name": "test",
     "entries": [
         {
             "kind": "a2z",
