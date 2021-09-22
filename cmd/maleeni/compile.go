@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/nihei9/maleeni/compiler"
 	"github.com/nihei9/maleeni/spec"
@@ -27,7 +26,6 @@ func init() {
 		Example: `  cat lexspec.json | maleeni compile > clexspec.json`,
 		RunE:    runCompile,
 	}
-	compileFlags.debug = cmd.Flags().BoolP("debug", "d", false, "enable logging")
 	compileFlags.lexSpec = cmd.Flags().StringP("lex-spec", "l", "", "lexical specification file path (default stdin)")
 	compileFlags.compLv = cmd.Flags().Int("compression-level", compiler.CompressionLevelMax, "compression level")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
@@ -40,33 +38,7 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		return fmt.Errorf("Cannot read a lexical specification: %w", err)
 	}
 
-	opts := []compiler.CompilerOption{
-		compiler.CompressionLevel(*compileFlags.compLv),
-	}
-	if *compileFlags.debug {
-		fileName := "maleeni-compile.log"
-		f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			return fmt.Errorf("Cannot open the log file %s: %w", fileName, err)
-		}
-		defer f.Close()
-		fmt.Fprintf(f, `maleeni compile starts.
-Date time: %v
----
-`, time.Now().Format(time.RFC3339))
-		defer func() {
-			fmt.Fprintf(f, "---\n")
-			if retErr != nil {
-				fmt.Fprintf(f, "maleeni compile failed: %v\n", retErr)
-			} else {
-				fmt.Fprintf(f, "maleeni compile succeeded.\n")
-			}
-		}()
-
-		opts = append(opts, compiler.EnableLogging(f))
-	}
-
-	clspec, err := compiler.Compile(lspec, opts...)
+	clspec, err := compiler.Compile(lspec, compiler.CompressionLevel(*compileFlags.compLv))
 	if err != nil {
 		return err
 	}

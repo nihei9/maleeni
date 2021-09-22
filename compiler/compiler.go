@@ -2,26 +2,12 @@ package compiler
 
 import (
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/nihei9/maleeni/compressor"
-	"github.com/nihei9/maleeni/log"
 	"github.com/nihei9/maleeni/spec"
 )
 
 type CompilerOption func(c *compilerConfig) error
-
-func EnableLogging(w io.Writer) CompilerOption {
-	return func(c *compilerConfig) error {
-		logger, err := log.NewLogger(w)
-		if err != nil {
-			return err
-		}
-		c.logger = logger
-		return nil
-	}
-}
 
 func CompressionLevel(lv int) CompilerOption {
 	return func(c *compilerConfig) error {
@@ -34,7 +20,6 @@ func CompressionLevel(lv int) CompilerOption {
 }
 
 type compilerConfig struct {
-	logger log.Logger
 	compLv int
 }
 
@@ -44,9 +29,7 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 		return nil, fmt.Errorf("invalid lexical specification:\n%w", err)
 	}
 
-	config := &compilerConfig{
-		logger: log.NewNopLogger(),
-	}
+	config := &compilerConfig{}
 	for _, opt := range opts {
 		err := opt(config)
 		if err != nil {
@@ -61,7 +44,6 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}
 	for i, es := range modeEntries[1:] {
 		modeName := modeNames[i+1]
-		config.logger.Log("Compile %v mode:", modeName)
 		modeSpec, err := compile(es, modeName2ID, fragmetns, config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile in %v mode: %w", modeName, err)
@@ -167,11 +149,6 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 			kindNames = append(kindNames, e.Kind)
 			patterns[spec.LexModeKindID(i+1)] = []byte(e.Pattern)
 		}
-
-		config.logger.Log("Patterns:")
-		for i, p := range patterns {
-			config.logger.Log("  #%v %v", i, string(p))
-		}
 	}
 
 	push := []spec.LexModeID{
@@ -217,10 +194,6 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 		if err != nil {
 			return nil, err
 		}
-
-		var b strings.Builder
-		printAST(&b, root, "", "", false)
-		config.logger.Log("AST:\n%v", b.String())
 	}
 
 	var tranTab *spec.TransitionTable
@@ -230,14 +203,6 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 		tranTab, err = genTransitionTable(dfa)
 		if err != nil {
 			return nil, err
-		}
-
-		config.logger.Log(`DFA:
-  States: %v states (%v entries)
-  Initial State ID: %v`, tranTab.RowCount, tranTab.RowCount*tranTab.ColCount, tranTab.InitialStateID)
-		config.logger.Log("  Accepting States:")
-		for state, symbol := range tranTab.AcceptingStates {
-			config.logger.Log("    %v: %v", state, symbol)
 		}
 	}
 
