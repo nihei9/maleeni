@@ -201,8 +201,19 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 	var root astNode
 	var symTab *symbolTable
 	{
+		pats := make([]*patternEntry, len(patterns)+1)
+		pats[spec.LexModeKindIDNil] = &patternEntry{
+			id: spec.LexModeKindIDNil,
+		}
+		for id, pattern := range patterns {
+			pats[id] = &patternEntry{
+				id:      id,
+				pattern: pattern,
+			}
+		}
+
 		var err error
-		root, symTab, err = parse(patterns, fragmentPatterns)
+		root, symTab, err = parse(pats, fragmentPatterns)
 		if err != nil {
 			return nil, err
 		}

@@ -7,8 +7,11 @@ import (
 )
 
 func TestGenDFA(t *testing.T) {
-	root, symTab, err := parse(map[spec.LexModeKindID][]byte{
-		1: []byte("(a|b)*abb"),
+	root, symTab, err := parse([]*patternEntry{
+		{
+			id:      spec.LexModeKindIDMin,
+			pattern: []byte("(a|b)*abb"),
+		},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)

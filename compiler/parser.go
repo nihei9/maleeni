@@ -78,8 +78,13 @@ func genSymTab(symTab *symbolTable, node astNode) *symbolTable {
 	return symTab
 }
 
-func parse(regexps map[spec.LexModeKindID][]byte, fragments map[string][]byte) (astNode, *symbolTable, error) {
-	if len(regexps) == 0 {
+type patternEntry struct {
+	id      spec.LexModeKindID
+	pattern []byte
+}
+
+func parse(pats []*patternEntry, fragments map[string][]byte) (astNode, *symbolTable, error) {
+	if len(pats) == 0 {
 		return nil, nil, fmt.Errorf("parse() needs at least one token entry")
 	}
 
@@ -91,7 +96,7 @@ func parse(regexps map[spec.LexModeKindID][]byte, fragments map[string][]byte) (
 		fragmentASTs = map[string]astNode{}
 	}
 
-	root, err := parseRegexp(regexps, fragmentASTs)
+	root, err := parseRegexp(pats, fragmentASTs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -161,17 +166,22 @@ func parseFragments(fragments map[string][]byte) (map[string]astNode, error) {
 	return fragmentASTs, nil
 }
 
-func parseRegexp(regexps map[spec.LexModeKindID][]byte, fragmentASTs map[string]astNode) (astNode, error) {
+func parseRegexp(pats []*patternEntry, fragmentASTs map[string]astNode) (astNode, error) {
 	symPos := symbolPositionMin
 	var root astNode
 	var perrs []*ParseError
-	for id, pattern := range regexps {
-		p := newParser(bytes.NewReader(pattern))
+
+	for _, pat := range pats {
+		if pat.id == spec.LexModeKindIDNil {
+			continue
+		}
+
+		p := newParser(bytes.NewReader(pat.pattern))
 		ast, err := p.parse()
 		if err != nil {
 			perrs = append(perrs, &ParseError{
-				ID:      id,
-				Pattern: pattern,
+				ID:      pat.id,
+				Pattern: pat.pattern,
 				Cause:   err,
 				Details: p.errMsgDetails,
 			})
@@ -180,18 +190,18 @@ func parseRegexp(regexps map[spec.LexModeKindID][]byte, fragmentASTs map[string]
 		remains := applyFragments(ast, fragmentASTs)
 		if len(remains) > 0 {
 			perrs = append(perrs, &ParseError{
-				ID:      id,
-				Pattern: pattern,
+				ID:      pat.id,
+				Pattern: pat.pattern,
 				Cause:   fmt.Errorf("undefined fragment: %+v", remains),
 			})
 			continue
 		}
-		ast = newConcatNode(ast, newEndMarkerNode(id))
+		ast = newConcatNode(ast, newEndMarkerNode(pat.id))
 		symPos, err = positionSymbols(ast, symPos)
 		if err != nil {
 			perrs = append(perrs, &ParseError{
-				ID:      id,
-				Pattern: pattern,
+				ID:      pat.id,
+				Pattern: pat.pattern,
 				Cause:   err,
 				Details: p.errMsgDetails,
 			})

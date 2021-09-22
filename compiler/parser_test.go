@@ -1199,8 +1199,11 @@ func TestParse(t *testing.T) {
 			for kind, pattern := range tt.fragments {
 				fragments[kind] = []byte(pattern)
 			}
-			ast, _, err := parse(map[spec.LexModeKindID][]byte{
-				1: []byte(tt.pattern),
+			ast, _, err := parse([]*patternEntry{
+				{
+					id:      spec.LexModeKindIDMin,
+					pattern: []byte(tt.pattern),
+				},
 			}, fragments)
 			if tt.syntaxError != nil {
 				// printAST(os.Stdout, ast, "", "", false)
@@ -1239,8 +1242,11 @@ func TestParse(t *testing.T) {
 }
 
 func TestParse_FollowAndSymbolTable(t *testing.T) {
-	root, symTab, err := parse(map[spec.LexModeKindID][]byte{
-		1: []byte("(a|b)*abb"),
+	root, symTab, err := parse([]*patternEntry{
+		{
+			id:      spec.LexModeKindIDMin,
+			pattern: []byte("(a|b)*abb"),
+		},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
