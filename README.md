@@ -165,25 +165,34 @@ The lexical specification format to be passed to `maleeni compile` command is as
 
 top level object:
 
-| Field   | Type                   | Nullable | Description                                                                                                               |
-|---------|------------------------|----------|---------------------------------------------------------------------------------------------------------------------------|
-| name    | string                 | false    | A specification name.                                                                                                     |
-| entries | array of entry objects | false    | An array of entries sorted by priority. The first element has the highest priority, and the last has the lowest priority. |
+| Field   | Type                   | Domain | Nullable | Description                                                                                                               |
+|---------|------------------------|--------|----------|---------------------------------------------------------------------------------------------------------------------------|
+| name    | string                 | id     | false    | A specification name.                                                                                                     |
+| entries | array of entry objects | N/A    | false    | An array of entries sorted by priority. The first element has the highest priority, and the last has the lowest priority. |
 
 entry object:
 
-| Field    | Type             | Nullable | Description                                                                                                           |
-|----------|------------------|----------|-----------------------------------------------------------------------------------------------------------------------|
-| kind     | string           | false    | A name of a token kind. The name must be unique, but duplicate names between fragments and non-fragments are allowed. |
-| pattern  | string           | false    | A pattern in a regular expression                                                                                     |
-| modes    | array of strings | true     | Mode names that an entry is enabled in (default: "default")                                                           |
-| push     | string           | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears                         |
-| pop      | bool             | true     | When `pop` is `true`, the lexer pops a mode from own mode stack.                                                      |
-| fragment | bool             | true     | When `fragment` is `true`, its entry is a fragment.                                                                   |
+| Field    | Type             | Domain | Nullable | Description                                                                                                           |
+|----------|------------------|--------|----------|-----------------------------------------------------------------------------------------------------------------------|
+| kind     | string           | id     | false    | A name of a token kind. The name must be unique, but duplicate names between fragments and non-fragments are allowed. |
+| pattern  | string           | regexp | false    | A pattern in a regular expression                                                                                     |
+| modes    | array of strings | N/A    | true     | Mode names that an entry is enabled in (default: "default")                                                           |
+| push     | string           | id     | true     | A mode name that the lexer pushes to own mode stack when a token matching the pattern appears                         |
+| pop      | bool             | N/A    | true     | When `pop` is `true`, the lexer pops a mode from own mode stack.                                                      |
+| fragment | bool             | N/A    | true     | When `fragment` is `true`, its entry is a fragment.                                                                   |
 
-See [Regular Expression Syntax](#regular-expression-syntax) for more details on the regular expression syntax.
+See [Identifier](#identifier) and [Regular Expression](#regular-expression) for more details on `id` domain and `regexp` domain.
 
-## Regular Expression Syntax
+## Identifier
+
+`id` represents an identifier and must follow the rules below:
+
+* `id` must be a lower snake case. It can contain only `a` to `z`, `0` to `9`, and `_`.
+* The first and last characters must be one of `a` to `z`.
+
+## Regular Expression
+
+`regexp` represents a regular expression. Its syntax is below:
 
 ⚠️ In JSON, you need to write `\` as `\\`.
 

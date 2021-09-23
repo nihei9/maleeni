@@ -101,7 +101,7 @@ func (m LexModeName) validate() error {
 	return nil
 }
 
-const idPattern = `^[A-Za-z](_?[0-9A-Za-z]+)*$`
+const idPattern = `^[a-z](_?[0-9a-z]+)*$`
 
 var idRE = regexp.MustCompile(idPattern)
 

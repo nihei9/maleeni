@@ -22,6 +22,14 @@ var idTests = []struct {
 		id: "f_o_o",
 	},
 	{
+		id:      "Foo",
+		invalid: true,
+	},
+	{
+		id:      "foo_Bar",
+		invalid: true,
+	},
+	{
 		id:      "2foo",
 		invalid: true,
 	},
