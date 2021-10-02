@@ -71,6 +71,7 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 	{
 		var b strings.Builder
 		fmt.Fprintf(&b, `
+// ModeIDToName converts a mode ID to a name.
 func ModeIDToName(id ModeID) string {
     switch id {`)
 		for i, k := range clspec.ModeNames {
@@ -127,6 +128,7 @@ func ModeIDToName(id ModeID) string {
 	{
 		var b strings.Builder
 		fmt.Fprintf(&b, `
+// KindIDToName converts a kind ID to a name.
 func KindIDToName(id KindID) string {
     switch id {`)
 		for i, k := range clspec.KindNames {

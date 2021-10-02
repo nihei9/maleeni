@@ -72,6 +72,10 @@ type Token struct {
 
 type LexerOption func(l *Lexer) error
 
+// DisableModeTransition disables the active mode transition. Thus, even if the lexical specification has the push and pop
+// operations, the lexer doesn't perform these operations. When the lexical specification has multiple modes, and this option is
+// enabled, you need to call the Lexer.Push and Lexer.Pop methods to perform the mode transition. You can use the Lexer.Mode method
+// to know the current lex mode.
 func DisableModeTransition() LexerOption {
 	return func(l *Lexer) error {
 		l.passiveModeTran = true
@@ -92,6 +96,7 @@ type Lexer struct {
 	passiveModeTran bool
 }
 
+// NewLexer returns a new lexer.
 func NewLexer(spec LexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) {
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
@@ -118,6 +123,7 @@ func NewLexer(spec LexSpec, src io.Reader, opts ...LexerOption) (*Lexer, error) 
 	return l, nil
 }
 
+// Next returns a next token.
 func (l *Lexer) Next() (*Token, error) {
 	if len(l.tokBuf) > 0 {
 		tok := l.tokBuf[0]
@@ -169,11 +175,9 @@ func (l *Lexer) nextAndTransition() (*Token, error) {
 	if mode, ok := l.spec.Push(mode, tok.ModeKindID); ok {
 		l.PushMode(mode)
 	}
-	// The checking length of the mode stack must be at after pop and push operations
-	// because those operations can be performed at the same time.
-	// When the mode stack has just one element and popped it, the mode stack will be temporarily emptied.
-	// However, since a push operation may be performed immediately after it,
-	// the lexer allows the stack to be temporarily empty.
+	// The checking length of the mode stack must be at after pop and push operations because those operations can be performed
+	// at the same time. When the mode stack has just one element and popped it, the mode stack will be temporarily emptied.
+	// However, since a push operation may be performed immediately after it, the lexer allows the stack to be temporarily empty.
 	if len(l.modeStack) == 0 {
 		return nil, fmt.Errorf("a mode stack must have at least one element")
 	}
@@ -195,8 +199,7 @@ func (l *Lexer) next() (*Token, error) {
 				l.unread(unfixedBufLen)
 				return tok, nil
 			}
-			// When `buf` has unaccepted data and reads the EOF,
-			// the lexer treats the buffered data as an invalid token.
+			// When `buf` has unaccepted data and reads the EOF, the lexer treats the buffered data as an invalid token.
 			if len(buf) > 0 {
 				return &Token{
 					ModeID:     mode,
@@ -248,14 +251,17 @@ func (l *Lexer) next() (*Token, error) {
 	}
 }
 
+// Mode returns the current lex mode.
 func (l *Lexer) Mode() ModeID {
 	return l.modeStack[len(l.modeStack)-1]
 }
 
+// PushMode adds a lex mode onto the mode stack.
 func (l *Lexer) PushMode(mode ModeID) {
 	l.modeStack = append(l.modeStack, mode)
 }
 
+// PopMode removes a lex mode from the top of the mode stack.
 func (l *Lexer) PopMode() error {
 	sLen := len(l.modeStack)
 	if sLen == 0 {
@@ -297,7 +303,7 @@ func (l *Lexer) read() (byte, bool) {
 	return b, false
 }
 
-// You must not call this function consecutively to record the token position correctly.
+// We must not call this function consecutively to record the token position correctly.
 func (l *Lexer) unread(n int) {
 	l.srcPtr -= n
 
