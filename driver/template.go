@@ -67,6 +67,33 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 		modeNamesSrc = b.String()
 	}
 
+	var modeIDToNameSrc string
+	{
+		var b strings.Builder
+		fmt.Fprintf(&b, `
+func ModeIDToName(id ModeID) string {
+    switch id {`)
+		for i, k := range clspec.ModeNames {
+			if i == spec.LexModeIDNil.Int() {
+				fmt.Fprintf(&b, `
+    case ModeIDNil:
+        return ModeNameNil`)
+				continue
+			}
+			name := spec.SnakeCaseToUpperCamelCase(k.String())
+			fmt.Fprintf(&b, `
+    case ModeID%v:
+        return ModeName%v`, name, name)
+		}
+		fmt.Fprintf(&b, `
+    }
+    return ""
+}
+`)
+
+		modeIDToNameSrc = b.String()
+	}
+
 	var kindIDsSrc string
 	{
 		var b strings.Builder
@@ -94,6 +121,33 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 		fmt.Fprintf(&b, ")")
 
 		kindNamesSrc = b.String()
+	}
+
+	var kindIDToNameSrc string
+	{
+		var b strings.Builder
+		fmt.Fprintf(&b, `
+func KindIDToName(id KindID) string {
+    switch id {`)
+		for i, k := range clspec.KindNames {
+			if i == spec.LexModeIDNil.Int() {
+				fmt.Fprintf(&b, `
+    case KindIDNil:
+        return KindNameNil`)
+				continue
+			}
+			name := spec.SnakeCaseToUpperCamelCase(k.String())
+			fmt.Fprintf(&b, `
+    case KindID%v:
+        return KindName%v`, name, name)
+		}
+		fmt.Fprintf(&b, `
+    }
+    return ""
+}
+`)
+
+		kindIDToNameSrc = b.String()
 	}
 
 	var specSrc string
@@ -127,9 +181,13 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 
 {{ .modeNamesSrc }}
 
+{{ .modeIDToNameSrc }}
+
 {{ .kindIDsSrc }}
 
 {{ .kindNamesSrc }}
+
+{{ .kindIDToNameSrc }}
 
 {{ .specSrc }}
 `
@@ -141,12 +199,14 @@ func GenLexer(clspec *spec.CompiledLexSpec, pkgName string) ([]byte, error) {
 
 		var b strings.Builder
 		err = t.Execute(&b, map[string]string{
-			"lexerSrc":     lexerSrc,
-			"modeIDsSrc":   modeIDsSrc,
-			"modeNamesSrc": modeNamesSrc,
-			"kindIDsSrc":   kindIDsSrc,
-			"kindNamesSrc": kindNamesSrc,
-			"specSrc":      specSrc,
+			"lexerSrc":        lexerSrc,
+			"modeIDsSrc":      modeIDsSrc,
+			"modeNamesSrc":    modeNamesSrc,
+			"modeIDToNameSrc": modeIDToNameSrc,
+			"kindIDsSrc":      kindIDsSrc,
+			"kindNamesSrc":    kindNamesSrc,
+			"kindIDToNameSrc": kindIDToNameSrc,
+			"specSrc":         specSrc,
 		})
 		if err != nil {
 			return nil, err

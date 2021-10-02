@@ -67,12 +67,14 @@ func runLex(cmd *cobra.Command, args []string) (retErr error) {
 		defer f.Close()
 		w = f
 	}
+
+	tok2JSON := genTokenJSONMarshaler(clspec)
 	for {
 		tok, err := lex.Next()
 		if err != nil {
 			return err
 		}
-		data, err := json.Marshal(tok)
+		data, err := tok2JSON(tok)
 		if err != nil {
 			return fmt.Errorf("failed to marshal a token; token: %v, error: %v\n", tok, err)
 		}
@@ -103,4 +105,32 @@ func readCompiledLexSpec(path string) (*spec.CompiledLexSpec, error) {
 		return nil, err
 	}
 	return clspec, nil
+}
+
+func genTokenJSONMarshaler(clspec *spec.CompiledLexSpec) func(tok *driver.Token) ([]byte, error) {
+	return func(tok *driver.Token) ([]byte, error) {
+		return json.Marshal(struct {
+			ModeID     int    `json:"mode_id"`
+			ModeName   string `json:"mode_name"`
+			KindID     int    `json:"kind_id"`
+			ModeKindID int    `json:"mode_kind_id"`
+			KindName   string `json:"kind_name"`
+			Row        int    `json:"row"`
+			Col        int    `json:"col"`
+			Lexeme     string `json:"lexeme"`
+			EOF        bool   `json:"eof"`
+			Invalid    bool   `json:"invalid"`
+		}{
+			ModeID:     tok.ModeID.Int(),
+			ModeName:   clspec.ModeNames[tok.ModeID].String(),
+			KindID:     tok.KindID.Int(),
+			ModeKindID: tok.ModeKindID.Int(),
+			KindName:   clspec.KindNames[tok.KindID].String(),
+			Row:        tok.Row,
+			Col:        tok.Col,
+			Lexeme:     string(tok.Lexeme),
+			EOF:        tok.EOF,
+			Invalid:    tok.Invalid,
+		})
+	}
 }

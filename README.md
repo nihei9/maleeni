@@ -125,9 +125,9 @@ func main() {
             break
         }
         if tok.Invalid {
-            fmt.Printf("invalid: '%v'\n", string(tok.Lexeme))
+            fmt.Printf("invalid: %#v\n", string(tok.Lexeme))
         } else {
-            fmt.Printf("valid: %v: '%v'\n", tok.KindName, string(tok.Lexeme))
+            fmt.Printf("valid: %v: %#v\n", KindIDToName(tok.KindID), string(tok.Lexeme))
         }
     }
 }
@@ -145,14 +145,14 @@ Now, you can perform the lexical analysis.
 
 ```sh
 $ echo -n 'I want to believe.' | go run main.go statement_lexer.go
-valid: word: 'I'
-valid: whitespace: ' '
-valid: word: 'want'
-valid: whitespace: ' '
-valid: word: 'to'
-valid: whitespace: ' '
-valid: word: 'believe'
-valid: punctuation: '.'
+valid: word: "I"
+valid: whitespace: " "
+valid: word: "want"
+valid: whitespace: " "
+valid: word: "to"
+valid: whitespace: " "
+valid: word: "believe"
+valid: punctuation: "."
 ```
 
 ## More Practical Usage

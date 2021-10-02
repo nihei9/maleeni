@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -47,18 +46,12 @@ type Token struct {
 	// ModeID is an ID of a lex mode.
 	ModeID ModeID
 
-	// ModeName is a name of a lex mode.
-	ModeName string
-
 	// KindID is an ID of a kind. This is unique among all modes.
 	KindID KindID
 
 	// ModeKindID is an ID of a lexical kind. This is unique only within a mode.
 	// Note that you need to use KindID field if you want to identify a kind across all modes.
 	ModeKindID ModeKindID
-
-	// KindName is a name of a lexical kind.
-	KindName string
 
 	// Row is a row number where a lexeme appears.
 	Row int
@@ -75,32 +68,6 @@ type Token struct {
 
 	// When this field is true, it means the token is an error token.
 	Invalid bool
-}
-
-func (t *Token) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		ModeID     int    `json:"mode_id"`
-		ModeName   string `json:"mode_name"`
-		KindID     int    `json:"kind_id"`
-		ModeKindID int    `json:"mode_kind_id"`
-		KindName   string `json:"kind_name"`
-		Row        int    `json:"row"`
-		Col        int    `json:"col"`
-		Lexeme     string `json:"lexeme"`
-		EOF        bool   `json:"eof"`
-		Invalid    bool   `json:"invalid"`
-	}{
-		ModeID:     t.ModeID.Int(),
-		ModeName:   t.ModeName,
-		KindID:     t.KindID.Int(),
-		ModeKindID: t.ModeKindID.Int(),
-		KindName:   t.KindName,
-		Row:        t.Row,
-		Col:        t.Col,
-		Lexeme:     string(t.Lexeme),
-		EOF:        t.EOF,
-		Invalid:    t.Invalid,
-	})
 }
 
 type LexerOption func(l *Lexer) error
@@ -215,7 +182,6 @@ func (l *Lexer) nextAndTransition() (*Token, error) {
 
 func (l *Lexer) next() (*Token, error) {
 	mode := l.Mode()
-	modeName := l.spec.ModeName(mode)
 	state := l.spec.InitialState(mode)
 	buf := []byte{}
 	unfixedBufLen := 0
@@ -234,7 +200,6 @@ func (l *Lexer) next() (*Token, error) {
 			if len(buf) > 0 {
 				return &Token{
 					ModeID:     mode,
-					ModeName:   modeName,
 					ModeKindID: 0,
 					Lexeme:     buf,
 					Row:        row,
@@ -244,7 +209,6 @@ func (l *Lexer) next() (*Token, error) {
 			}
 			return &Token{
 				ModeID:     mode,
-				ModeName:   modeName,
 				ModeKindID: 0,
 				Row:        0,
 				Col:        0,
@@ -261,7 +225,6 @@ func (l *Lexer) next() (*Token, error) {
 			}
 			return &Token{
 				ModeID:     mode,
-				ModeName:   modeName,
 				ModeKindID: 0,
 				Lexeme:     buf,
 				Row:        row,
@@ -271,13 +234,11 @@ func (l *Lexer) next() (*Token, error) {
 		}
 		state = nextState
 		if modeKindID, ok := l.spec.Accept(mode, state); ok {
-			kindID, kindName := l.spec.KindIDAndName(mode, modeKindID)
+			kindID, _ := l.spec.KindIDAndName(mode, modeKindID)
 			tok = &Token{
 				ModeID:     mode,
-				ModeName:   modeName,
 				KindID:     kindID,
 				ModeKindID: modeKindID,
-				KindName:   kindName,
 				Lexeme:     buf,
 				Row:        row,
 				Col:        col,
