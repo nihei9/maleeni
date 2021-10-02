@@ -284,10 +284,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.Pop[0] != 0)
-				for _, v := range s.Pop[1:] {
-					fmt.Fprintf(&b, ", %v", v != 0)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.Pop {
+					fmt.Fprintf(&b, "%v, ", v != 0)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -303,10 +313,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.Push[0])
-				for _, v := range s.Push[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.Push {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -349,10 +369,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.AcceptingStates[0])
-				for _, v := range s.DFA.AcceptingStates[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.AcceptingStates {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -407,10 +437,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.RowNums[0])
-				for _, v := range s.DFA.Transition.RowNums[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.Transition.RowNums {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -427,10 +467,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.UniqueEntries.RowDisplacement[0])
-				for _, d := range s.DFA.Transition.UniqueEntries.RowDisplacement[1:] {
-					fmt.Fprintf(&b, ", %v", d)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, d := range s.DFA.Transition.UniqueEntries.RowDisplacement {
+					fmt.Fprintf(&b, "%v,", d)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -447,10 +497,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.UniqueEntries.Bounds[0])
-				for _, v := range s.DFA.Transition.UniqueEntries.Bounds[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.Transition.UniqueEntries.Bounds {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -467,10 +527,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.UniqueEntries.Entries[0])
-				for _, v := range s.DFA.Transition.UniqueEntries.Entries[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.Transition.UniqueEntries.Entries {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -491,10 +561,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.RowNums[0])
-				for _, v := range s.DFA.Transition.RowNums[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.Transition.RowNums {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -519,10 +599,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.Transition.UncompressedUniqueEntries[0])
-				for _, v := range s.DFA.Transition.UncompressedUniqueEntries[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.Transition.UncompressedUniqueEntries {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
@@ -566,10 +656,20 @@ func genTemplateFuncs(clspec *spec.CompiledLexSpec) template.FuncMap {
 					continue
 				}
 
-				fmt.Fprintf(&b, "{")
-				fmt.Fprintf(&b, "%v", s.DFA.UncompressedTransition[0])
-				for _, v := range s.DFA.UncompressedTransition[1:] {
-					fmt.Fprintf(&b, ", %v", v)
+				c := 1
+				fmt.Fprintf(&b, "{\n")
+				for _, v := range s.DFA.UncompressedTransition {
+					fmt.Fprintf(&b, "%v,", v)
+
+					if c == 20 {
+						fmt.Fprintf(&b, "\n")
+						c = 1
+					} else {
+						c++
+					}
+				}
+				if c > 1 {
+					fmt.Fprintf(&b, "\n")
 				}
 				fmt.Fprintf(&b, "},\n")
 			}
