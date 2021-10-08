@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.1
+
+* [fe865a8](https://github.com/nihei9/maleeni/commit/fe865a812401c2c612f2cd17cedd4728dc4798f7) - Generate constant values representing mode IDs, mode names, kind IDs, and kind names.
+* [7be1d27](https://github.com/nihei9/maleeni/commit/7be1d273429765907af0abad182666d77eb557e4) - Add `name` field to the lexical specification. maleeni uses the `name` field to generate a source file name of the lexer. For instance, when the name is _my\_lex_, the source file of the lexer is named _my\_lex\_lexer_.
+* [cf4f533](https://github.com/nihei9/maleeni/commit/cf4f53332e9d99a3a9eccfe69e70f98769862c3a) - Keep the order of AST nodes constant. This change is intended to output the same transition table for the same inputs.
+* [9f3a334](https://github.com/nihei9/maleeni/commit/9f3a33484b61b4291bf4093dbe145fb01a452299) - Remove `--debug` option from compile command.
+* [a8ed73f](https://github.com/nihei9/maleeni/commit/a8ed73f786fa9dd28965e4bf915022eb4a90bbba) - Disallow upper cases in an identifier.
+* [12658e0](https://github.com/nihei9/maleeni/commit/12658e068eb0ff4bde0cddfda6145ee34b800166) - Format the source code of a lexer maleeni-go generates.
+* [60a5089](https://github.com/nihei9/maleeni/commit/60a508960e71c73c5a8b72eb60ab0ac39d4f347d) - Remove the `ModeName` and `KindName` fields from the `driver.Token` struct.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.5.0...v0.5.1)
+
 ## v0.5.0
 
 * [6332aaf](https://github.com/nihei9/maleeni/commit/6332aaf0b6caf7e23d7b4ca59c06f193bfbf7329) - Remove `--debug` option from `maleeni lex` command.
