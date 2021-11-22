@@ -14,122 +14,72 @@ type CodePointRange struct {
 	To   rune
 }
 
-type UnicodeData struct {
-	GeneralCategory map[string][]*CodePointRange
+var codePointRangeNil = &CodePointRange{
+	From: 0,
+	To:   0,
 }
 
-func ParseUnicodeData(r io.Reader, propValAliases *PropertyValueAliases) (*UnicodeData, error) {
-	gc2CPRange := map[string][]*CodePointRange{}
-	lastCPTo := rune(-1)
-	p := newParser(r)
-	for p.parse() {
-		if len(p.fields) == 0 {
-			continue
-		}
-		cpFrom, cpTo, err := parseCodePointRange(p.fields[0])
+type field string
+
+func (f field) codePointRange() (*CodePointRange, error) {
+	var from, to rune
+	var err error
+	cp := reCodePointRange.FindStringSubmatch(string(f))
+	from, err = decodeHexToRune(cp[1])
+	if err != nil {
+		return codePointRangeNil, err
+	}
+	if cp[2] != "" {
+		to, err = decodeHexToRune(cp[2])
 		if err != nil {
-			return nil, err
+			return codePointRangeNil, err
 		}
-		if cpFrom-lastCPTo > 1 {
-			defaultGCVal := propValAliases.GeneralCategoryDefaultValue
-			gc2CPRange[defaultGCVal] = append(gc2CPRange[defaultGCVal], &CodePointRange{
-				From: lastCPTo + 1,
-				To:   cpFrom - 1,
-			})
-		}
-		lastCPTo = cpTo
-		gc := NormalizeSymbolicValue(p.fields[2])
-		rs, ok := gc2CPRange[gc]
-		if ok {
-			r := rs[len(rs)-1]
-			if cpFrom-r.To == 1 {
-				r.To = cpTo
-			} else {
-				gc2CPRange[gc] = append(rs, &CodePointRange{
-					From: cpFrom,
-					To:   cpTo,
-				})
-			}
-		} else {
-			gc2CPRange[gc] = []*CodePointRange{
-				{
-					From: cpFrom,
-					To:   cpTo,
-				},
-			}
-		}
+	} else {
+		to = from
 	}
-	if p.err != nil {
-		return nil, p.err
-	}
-	if lastCPTo < propValAliases.GeneralCategoryDefaultRange.To {
-		defaultGCVal := propValAliases.GeneralCategoryDefaultValue
-		gc2CPRange[defaultGCVal] = append(gc2CPRange[defaultGCVal], &CodePointRange{
-			From: lastCPTo + 1,
-			To:   propValAliases.GeneralCategoryDefaultRange.To,
-		})
-	}
-	return &UnicodeData{
-		GeneralCategory: gc2CPRange,
+	return &CodePointRange{
+		From: from,
+		To:   to,
 	}, nil
 }
 
-type PropertyValueAliases struct {
-	GeneralCategory             map[string]string
-	GeneralCategoryDefaultRange *CodePointRange
-	GeneralCategoryDefaultValue string
+func decodeHexToRune(hexCodePoint string) (rune, error) {
+	h := hexCodePoint
+	if len(h)%2 != 0 {
+		h = "0" + h
+	}
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		return 0, err
+	}
+	l := len(b)
+	for i := 0; i < 4-l; i++ {
+		b = append([]byte{0}, b...)
+	}
+	n := binary.BigEndian.Uint32(b)
+	return rune(n), nil
 }
 
-func ParsePropertyValueAliases(r io.Reader) (*PropertyValueAliases, error) {
-	catName2Abbs := map[string]string{}
-	var defaultGCCPRange *CodePointRange
-	var defaultGCVal string
-	p := newParser(r)
-	for p.parse() {
-		if len(p.fields) > 0 && p.fields[0] == "gc" {
-			catNameShort := NormalizeSymbolicValue(p.fields[1])
-			catNameLong := NormalizeSymbolicValue(p.fields[2])
-			catName2Abbs[catNameShort] = catNameShort
-			catName2Abbs[catNameLong] = catNameShort
-			for _, f := range p.fields[3:] {
-				catNameOther := NormalizeSymbolicValue(f)
-				catName2Abbs[catNameOther] = catNameShort
-			}
-		}
-		if len(p.defaultFields) > 0 && p.defaultFields[1] == "General_Category" {
-			cpFrom, cpTo, err := parseCodePointRange(p.defaultFields[0])
-			if err != nil {
-				return nil, err
-			}
-			defaultGCCPRange = &CodePointRange{
-				From: cpFrom,
-				To:   cpTo,
-			}
-			defaultGCVal = NormalizeSymbolicValue(p.defaultFields[2])
-		}
-	}
-	if p.err != nil {
-		return nil, p.err
-	}
-	return &PropertyValueAliases{
-		GeneralCategory:             catName2Abbs,
-		GeneralCategoryDefaultRange: defaultGCCPRange,
-		GeneralCategoryDefaultValue: defaultGCVal,
-	}, nil
+func (f field) symbol() string {
+	return string(f)
+}
+
+func (f field) normalizedSymbol() string {
+	return NormalizeSymbolicValue(string(f))
 }
 
 var symValReplacer = strings.NewReplacer("_", "", "-", "", "\x20", "")
 
-func NormalizeSymbolicValue(original string) string {
-	strings.Trim("", "")
-	v := strings.ToLower(symValReplacer.Replace(original))
+// NormalizeSymbolicValue normalizes a symbolic value. The normalized value meets UAX44-LM3.
+//
+// https://www.unicode.org/reports/tr44/#UAX44-LM3
+func NormalizeSymbolicValue(s string) string {
+	v := strings.ToLower(symValReplacer.Replace(s))
 	if strings.HasPrefix(v, "is") && v != "is" {
-		return v[3:]
+		return v[2:]
 	}
 	return v
 }
-
-type Fields []string
 
 var (
 	reLine           = regexp.MustCompile(`^\s*(.*?)\s*(#.*)?$`)
@@ -151,23 +101,25 @@ var (
 // https://www.unicode.org/reports/tr44/#Format_Conventions
 type parser struct {
 	scanner       *bufio.Scanner
-	fields        Fields
-	defaultFields Fields
+	fields        []field
+	defaultFields []field
 	err           error
+
+	fieldBuf        []field
+	defaultFieldBuf []field
 }
 
 func newParser(r io.Reader) *parser {
 	return &parser{
-		scanner: bufio.NewScanner(r),
+		scanner:         bufio.NewScanner(r),
+		fieldBuf:        make([]field, 50),
+		defaultFieldBuf: make([]field, 50),
 	}
 }
 
 func (p *parser) parse() bool {
 	for p.scanner.Scan() {
-		p.fields, p.defaultFields, p.err = parseRecord(p.scanner.Text())
-		if p.err != nil {
-			return false
-		}
+		p.parseRecord(p.scanner.Text())
 		if p.fields != nil || p.defaultFields != nil {
 			return true
 		}
@@ -176,63 +128,28 @@ func (p *parser) parse() bool {
 	return false
 }
 
-func parseRecord(src string) (Fields, Fields, error) {
+func (p *parser) parseRecord(src string) {
 	ms := reLine.FindStringSubmatch(src)
-	fields := ms[1]
-	comment := ms[2]
-	var fs Fields
-	if fields != "" {
-		fs = parseFields(fields)
-	}
-	var defaultFs Fields
-	if strings.HasPrefix(comment, specialCommentPrefix) {
-		fields := strings.Replace(comment, specialCommentPrefix, "", -1)
-		fs := parseFields(fields)
-		defaultFs = fs
-	}
-	return fs, defaultFs, nil
-}
-
-func parseFields(src string) Fields {
-	var fields Fields
-	for _, f := range strings.Split(src, ";") {
-		fields = append(fields, strings.TrimSpace(f))
-	}
-	return fields
-}
-
-func parseCodePointRange(src string) (rune, rune, error) {
-	var from, to rune
-	var err error
-	cp := reCodePointRange.FindStringSubmatch(src)
-	from, err = decodeHexToRune(cp[1])
-	if err != nil {
-		return 0, 0, err
-	}
-	if cp[2] != "" {
-		to, err = decodeHexToRune(cp[2])
-		if err != nil {
-			return 0, 0, err
-		}
+	mFields := ms[1]
+	mComment := ms[2]
+	if mFields != "" {
+		p.fields = parseFields(p.fieldBuf, mFields)
 	} else {
-		to = from
+		p.fields = nil
 	}
-	return from, to, nil
+	if strings.HasPrefix(mComment, specialCommentPrefix) {
+		p.defaultFields = parseFields(p.defaultFieldBuf, strings.Replace(mComment, specialCommentPrefix, "", -1))
+	} else {
+		p.defaultFields = nil
+	}
 }
 
-func decodeHexToRune(hexCodePoint string) (rune, error) {
-	h := hexCodePoint
-	if len(h)%2 != 0 {
-		h = "0" + h
+func parseFields(buf []field, src string) []field {
+	n := 0
+	for _, f := range strings.Split(src, ";") {
+		buf[n] = field(strings.TrimSpace(f))
+		n++
 	}
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		return 0, err
-	}
-	l := len(b)
-	for i := 0; i < 4-l; i++ {
-		b = append([]byte{0}, b...)
-	}
-	n := binary.BigEndian.Uint32(b)
-	return rune(n), nil
+
+	return buf[:n]
 }
