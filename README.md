@@ -242,7 +242,7 @@ The code point expressions match a character that has a specified code point. Th
 | \u{3042}   | U+3042 (hiragana あ)      |
 | \u{01F63A} | U+1F63A (grinning cat 😺) |
 
-The character property expressions match a character that has a specified character property of the Unicode. Currently, maleeni supports only General_Category.
+The character property expressions match a character that has a specified character property of the Unicode. Currently, maleeni supports only `General_Category` and `White_Space`. When you omitted the equal symbol and a right-side value, maleeni interprets a symbol in `\p{...}` as the `General_Category` value.
 
 | Example                     | Description                                        |
 |-----------------------------|----------------------------------------------------|
@@ -250,6 +250,8 @@ The character property expressions match a character that has a specified charac
 | \p{gc=Letter}               | the same as \p{General_Category=Letter}            |
 | \p{Letter}                  | the same as \p{General_Category=Letter}            |
 | \p{l}                       | the same as \p{General_Category=Letter}            |
+| \p{White_Space=yes}         | any one character whose White_Space is yes         |
+| \p{wspace=yes}              | the same as \p{White_Space=yes}                    |
 
 As you escape the special character with `\`, you can write a rule that matches the special character itself.
 The following escape sequences are available outside of bracket expressions.

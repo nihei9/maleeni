@@ -28,6 +28,22 @@ var compositGeneralCategories = map[string][]string{
 var propertyNameAbbs = map[string]string{
 	"generalcategory": "gc",
 	"gc":              "gc",
+	"whitespace":      "wspace",
+	"wspace":          "wspace",
+	"space":           "wspace",
+}
+
+// https://www.unicode.org/reports/tr44/#Type_Key_Table
+// https://www.unicode.org/reports/tr44/#Binary_Values_Table
+var binaryValues = map[string]bool{
+	"yes":   true,
+	"y":     true,
+	"true":  true,
+	"t":     true,
+	"no":    false,
+	"n":     false,
+	"false": false,
+	"f":     false,
 }
 
 // https://www.unicode.org/Public/13.0.0/ucd/PropertyValueAliases.txt
@@ -4086,4 +4102,19 @@ var generalCategoryCodePoints = map[string][]*ucd.CodePointRange{
 		&ucd.CodePointRange{From: rune(8287), To: rune(8287)},
 		&ucd.CodePointRange{From: rune(12288), To: rune(12288)},
 	},
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
+var whiteSpaceCodePoints = []*ucd.CodePointRange{
+	&ucd.CodePointRange{From: rune(9), To: rune(13)},
+	&ucd.CodePointRange{From: rune(32), To: rune(32)},
+	&ucd.CodePointRange{From: rune(133), To: rune(133)},
+	&ucd.CodePointRange{From: rune(160), To: rune(160)},
+	&ucd.CodePointRange{From: rune(5760), To: rune(5760)},
+	&ucd.CodePointRange{From: rune(8192), To: rune(8202)},
+	&ucd.CodePointRange{From: rune(8232), To: rune(8232)},
+	&ucd.CodePointRange{From: rune(8233), To: rune(8233)},
+	&ucd.CodePointRange{From: rune(8239), To: rune(8239)},
+	&ucd.CodePointRange{From: rune(8287), To: rune(8287)},
+	&ucd.CodePointRange{From: rune(12288), To: rune(12288)},
 }

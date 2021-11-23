@@ -28,6 +28,22 @@ var compositGeneralCategories = map[string][]string{
 var propertyNameAbbs = map[string]string{
     "generalcategory": "gc",
     "gc": "gc",
+	"whitespace": "wspace",
+	"wspace": "wspace",
+	"space": "wspace",
+}
+
+// https://www.unicode.org/reports/tr44/#Type_Key_Table
+// https://www.unicode.org/reports/tr44/#Binary_Values_Table
+var binaryValues = map[string]bool{
+	"yes": true,
+	"y": true,
+	"true": true,
+	"t": true,
+	"no": false,
+	"n": false,
+	"false": false,
+	"f": false,
 }
 
 // https://www.unicode.org/Public/13.0.0/ucd/PropertyValueAliases.txt
@@ -40,4 +56,9 @@ var generalCategoryCodePoints = map[string][]*ucd.CodePointRange{ {{ range $prop
 	"{{ $propName }}": { {{ range $codePoints }}
 	   &ucd.CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
 	},{{ end }}
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
+var whiteSpaceCodePoints = []*ucd.CodePointRange{ {{ range .PropList.WhiteSpace }}
+    &ucd.CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
 }

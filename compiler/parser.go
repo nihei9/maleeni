@@ -546,20 +546,38 @@ func (p *parser) parseCharProp() astNode {
 		propName = "gc"
 		propVal = sym1
 	}
-	cpRanges, err := findCodePointRanges(propName, propVal)
+	cpRanges, inverse, err := findCodePointRanges(propName, propVal)
 	if err != nil {
 		p.errMsgDetails = fmt.Sprintf("%v", err)
 		raiseSyntaxError(synErrCharPropUnsupported)
 	}
 
 	var alt astNode
-	for _, r := range cpRanges {
+	if inverse {
+		r := cpRanges[0]
 		from := genNormalCharAST(r.From)
 		to := genNormalCharAST(r.To)
-		alt = genAltNode(
-			alt,
-			genRangeAST(from, to),
-		)
+		alt = exclude(genRangeAST(from, to), genAnyCharAST())
+		if alt == nil {
+			panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+		}
+		for _, r := range cpRanges[1:] {
+			from := genNormalCharAST(r.From)
+			to := genNormalCharAST(r.To)
+			alt = exclude(genRangeAST(from, to), alt)
+			if alt == nil {
+				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+			}
+		}
+	} else {
+		for _, r := range cpRanges {
+			from := genNormalCharAST(r.From)
+			to := genNormalCharAST(r.To)
+			alt = genAltNode(
+				alt,
+				genRangeAST(from, to),
+			)
+		}
 	}
 
 	if !p.consume(tokenKindRBrace) {
