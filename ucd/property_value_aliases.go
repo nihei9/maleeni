@@ -60,3 +60,7 @@ func ParsePropertyValueAliases(r io.Reader) (*PropertyValueAliases, error) {
 		GeneralCategoryDefaultValue: defaultGCVal,
 	}, nil
 }
+
+func (a *PropertyValueAliases) gcAbb(gc string) string {
+	return a.GeneralCategory[gc]
+}
