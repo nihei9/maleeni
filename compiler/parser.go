@@ -538,6 +538,7 @@ func (p *parser) parseCharProp() astNode {
 		sym2 = p.lastTok.propSymbol
 	}
 
+	var alt astNode
 	var propName, propVal string
 	if sym2 != "" {
 		propName = sym1
@@ -546,37 +547,49 @@ func (p *parser) parseCharProp() astNode {
 		propName = "gc"
 		propVal = sym1
 	}
-	cpRanges, inverse, err := findCodePointRanges(propName, propVal)
+	pat, err := normalizeCharacterProperty(propName, propVal)
 	if err != nil {
 		p.errMsgDetails = fmt.Sprintf("%v", err)
 		raiseSyntaxError(synErrCharPropUnsupported)
 	}
-
-	var alt astNode
-	if inverse {
-		r := cpRanges[0]
-		from := genNormalCharAST(r.From)
-		to := genNormalCharAST(r.To)
-		alt = exclude(genRangeAST(from, to), genAnyCharAST())
-		if alt == nil {
-			panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+	if pat != "" {
+		p := newParser(bytes.NewReader([]byte(pat)))
+		ast, err := p.parse()
+		if err != nil {
+			panic(err)
 		}
-		for _, r := range cpRanges[1:] {
+		alt = ast
+	} else {
+		cpRanges, inverse, err := findCodePointRanges(propName, propVal)
+		if err != nil {
+			p.errMsgDetails = fmt.Sprintf("%v", err)
+			raiseSyntaxError(synErrCharPropUnsupported)
+		}
+		if inverse {
+			r := cpRanges[0]
 			from := genNormalCharAST(r.From)
 			to := genNormalCharAST(r.To)
-			alt = exclude(genRangeAST(from, to), alt)
+			alt = exclude(genRangeAST(from, to), genAnyCharAST())
 			if alt == nil {
 				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
 			}
-		}
-	} else {
-		for _, r := range cpRanges {
-			from := genNormalCharAST(r.From)
-			to := genNormalCharAST(r.To)
-			alt = genAltNode(
-				alt,
-				genRangeAST(from, to),
-			)
+			for _, r := range cpRanges[1:] {
+				from := genNormalCharAST(r.From)
+				to := genNormalCharAST(r.To)
+				alt = exclude(genRangeAST(from, to), alt)
+				if alt == nil {
+					panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+				}
+			}
+		} else {
+			for _, r := range cpRanges {
+				from := genNormalCharAST(r.From)
+				to := genNormalCharAST(r.To)
+				alt = genAltNode(
+					alt,
+					genRangeAST(from, to),
+				)
+			}
 		}
 	}
 

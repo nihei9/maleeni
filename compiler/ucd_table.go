@@ -24,10 +24,24 @@ var compositGeneralCategories = map[string][]string{
 	"c": {"cc", "cf", "cs", "co", "cn"},
 }
 
+// https://www.unicode.org/Public/13.0.0/ucd/DerivedCoreProperties.txt
+var derivedCoreProperties = map[string][]string{
+	"lower": {`\p{Ll}`, `\p{Other_Lowercase=yes}`},
+	"upper": {`\p{Lu}`, `\p{Other_Uppercase=yes}`},
+}
+
 // https://www.unicode.org/Public/13.0.0/ucd/PropertyAliases.txt
 var propertyNameAbbs = map[string]string{
 	"generalcategory": "gc",
 	"gc":              "gc",
+	"lowercase":       "lower",
+	"lower":           "lower",
+	"uppercase":       "upper",
+	"upper":           "upper",
+	"otherlowercase":  "olower",
+	"olower":          "olower",
+	"otheruppercase":  "oupper",
+	"oupper":          "oupper",
 	"whitespace":      "wspace",
 	"wspace":          "wspace",
 	"space":           "wspace",
@@ -4102,6 +4116,39 @@ var generalCategoryCodePoints = map[string][]*ucd.CodePointRange{
 		&ucd.CodePointRange{From: rune(8287), To: rune(8287)},
 		&ucd.CodePointRange{From: rune(12288), To: rune(12288)},
 	},
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
+var otherLowercaseCodePoints = []*ucd.CodePointRange{
+	&ucd.CodePointRange{From: rune(170), To: rune(170)},
+	&ucd.CodePointRange{From: rune(186), To: rune(186)},
+	&ucd.CodePointRange{From: rune(688), To: rune(696)},
+	&ucd.CodePointRange{From: rune(704), To: rune(705)},
+	&ucd.CodePointRange{From: rune(736), To: rune(740)},
+	&ucd.CodePointRange{From: rune(837), To: rune(837)},
+	&ucd.CodePointRange{From: rune(890), To: rune(890)},
+	&ucd.CodePointRange{From: rune(7468), To: rune(7530)},
+	&ucd.CodePointRange{From: rune(7544), To: rune(7544)},
+	&ucd.CodePointRange{From: rune(7579), To: rune(7615)},
+	&ucd.CodePointRange{From: rune(8305), To: rune(8305)},
+	&ucd.CodePointRange{From: rune(8319), To: rune(8319)},
+	&ucd.CodePointRange{From: rune(8336), To: rune(8348)},
+	&ucd.CodePointRange{From: rune(8560), To: rune(8575)},
+	&ucd.CodePointRange{From: rune(9424), To: rune(9449)},
+	&ucd.CodePointRange{From: rune(11388), To: rune(11389)},
+	&ucd.CodePointRange{From: rune(42652), To: rune(42653)},
+	&ucd.CodePointRange{From: rune(42864), To: rune(42864)},
+	&ucd.CodePointRange{From: rune(43000), To: rune(43001)},
+	&ucd.CodePointRange{From: rune(43868), To: rune(43871)},
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
+var otherUppercaseCodePoints = []*ucd.CodePointRange{
+	&ucd.CodePointRange{From: rune(8544), To: rune(8559)},
+	&ucd.CodePointRange{From: rune(9398), To: rune(9423)},
+	&ucd.CodePointRange{From: rune(127280), To: rune(127305)},
+	&ucd.CodePointRange{From: rune(127312), To: rune(127337)},
+	&ucd.CodePointRange{From: rune(127344), To: rune(127369)},
 }
 
 // https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
