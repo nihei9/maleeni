@@ -652,6 +652,10 @@ func genNormalCharAST(c rune) astNode {
 }
 
 func exclude(symbol, base astNode) astNode {
+	if alt, ok := symbol.(*altNode); ok {
+		return exclude(alt.right, exclude(alt.left, base))
+	}
+	
 	switch base.(type) {
 	case *altNode:
 		left, right := base.children()

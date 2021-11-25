@@ -756,6 +756,22 @@ func TestLexer_Next(t *testing.T) {
 				newEOFTokenDefault(),
 			},
 		},
+		// Character properties are available in a bracket expression.
+		{
+			lspec: &spec.LexSpec{
+				Name: "test",
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("letter", `[\p{Letter}]+`),
+					newLexEntryDefaultNOP("non_letter", `[^\p{Letter}]+`),
+				},
+			},
+			src: `foo123`,
+			tokens: []*Token{
+				newTokenDefault(1, 1, []byte(`foo`)),
+				newTokenDefault(2, 2, []byte(`123`)),
+				newEOFTokenDefault(),
+			},
+		},
 	}
 	for i, tt := range test {
 		for compLv := compiler.CompressionLevelMin; compLv <= compiler.CompressionLevelMax; compLv++ {
