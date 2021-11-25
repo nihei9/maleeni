@@ -33,7 +33,7 @@ func normalizeCharacterProperty(propName, propVal string) (string, error) {
 		fmt.Fprint(&b, prop)
 	}
 	fmt.Fprint(&b, "]")
-	
+
 	return b.String(), nil
 }
 
@@ -61,6 +61,16 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 			ranges = append(ranges, rs...)
 		}
 		return ranges, false, nil
+	case "oalpha":
+		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+		if !ok {
+			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
+		}
+		if yes {
+			return otherAlphabeticCodePoints, false, nil
+		} else {
+			return otherAlphabeticCodePoints, true, nil
+		}
 	case "olower":
 		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
 		if !ok {

@@ -26,6 +26,7 @@ var compositGeneralCategories = map[string][]string{
 
 // https://www.unicode.org/Public/13.0.0/ucd/DerivedCoreProperties.txt
 var derivedCoreProperties = map[string][]string{
+	"alpha": {`\p{Lowercase=yes}`, `\p{Uppercase=yes}`, `\p{Lt}`, `\p{Lm}`, `\p{Lo}`, `\p{Nl}`, `\p{Other_Alphabetic=yes}`},
 	"lower": {`\p{Ll}`, `\p{Other_Lowercase=yes}`},
 	"upper": {`\p{Lu}`, `\p{Other_Uppercase=yes}`},
 }
@@ -34,6 +35,10 @@ var derivedCoreProperties = map[string][]string{
 var propertyNameAbbs = map[string]string{
     "generalcategory": "gc",
     "gc": "gc",
+	"alphabetic": "alpha",
+	"alpha": "alpha",
+	"otheralphabetic": "oalpha",
+	"oalpha": "oalpha",
 	"lowercase": "lower",
 	"lower": "lower",
 	"uppercase": "upper",
@@ -70,6 +75,11 @@ var generalCategoryCodePoints = map[string][]*ucd.CodePointRange{ {{ range $prop
 	"{{ $propName }}": { {{ range $codePoints }}
 	   &ucd.CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
 	},{{ end }}
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
+var otherAlphabeticCodePoints = []*ucd.CodePointRange{ {{ range .PropList.OtherAlphabetic }}
+    &ucd.CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
 }
 
 // https://www.unicode.org/Public/13.0.0/ucd/PropList.txt
