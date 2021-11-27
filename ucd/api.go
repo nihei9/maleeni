@@ -39,6 +39,19 @@ func NormalizeCharacterProperty(propName, propVal string) (string, error) {
 	return b.String(), nil
 }
 
+func IsContributoryProperty(propName string) bool {
+	if propName == "" {
+		return false
+	}
+	
+	for _, p := range contributoryProperties {
+		if propName == p {
+			return true
+		}
+	}
+	return false
+}
+
 func FindCodePointRanges(propName, propVal string) ([]*CodePointRange, bool, error) {
 	if propName == "" {
 		propName = "gc"

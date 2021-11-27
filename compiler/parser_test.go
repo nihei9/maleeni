@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/nihei9/maleeni/spec"
+	"github.com/nihei9/maleeni/ucd"
 )
 
 func symPos(n uint16) symbolPosition {
@@ -1236,6 +1237,37 @@ func TestParse(t *testing.T) {
 				if !tt.skipTestAST {
 					testAST(t, tt.ast, ast)
 				}
+			}
+		})
+	}
+}
+
+func TestParse_ContributoryPropertyIsNotExposed(t *testing.T) {
+	for _, cProp := range ucd.ContributoryProperties() {
+		t.Run(fmt.Sprintf("%v", cProp), func(t *testing.T) {
+			ast, _, err := parse([]*patternEntry{
+				{
+					id:      spec.LexModeKindIDMin,
+					pattern: []byte(fmt.Sprintf(`\p{%v=yes}`, cProp)),
+				},
+			}, nil)
+			if err == nil {
+				t.Fatalf("expected syntax error; got: nil")
+			}
+			parseErrs, ok := err.(*ParseErrors)
+			if !ok {
+				t.Fatalf("expected ParseErrors; got: %v (type: %T)", err, err)
+			}
+			parseErr := parseErrs.Errors[0].Cause
+			synErr, ok := parseErr.(*SyntaxError)
+			if !ok {
+				t.Fatalf("expected SyntaxError; got: %v (type: %T)", parseErr, parseErr)
+			}
+			if synErr != synErrCharPropUnsupported {
+				t.Fatalf("unexpected syntax error; want: %v, got: %v", synErrCharPropUnsupported, synErr)
+			}
+			if ast != nil {
+				t.Fatalf("ast is not nil")
 			}
 		})
 	}

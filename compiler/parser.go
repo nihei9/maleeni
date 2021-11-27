@@ -251,12 +251,36 @@ type parser struct {
 	lastTok       *token
 	incomplete    bool
 	errMsgDetails string
+
+	// If and only if isContributoryPropertyExposed is true, the parser interprets contributory properties that
+	// appear in property expressions.
+	//
+	// The contributory properties are not exposed, and users cannot use those properties because the parser
+	// follows [UAX #44 5.13 Property APIs]. For instance, \p{Other_Alphabetic} is invalid.
+	//
+	// isContributoryPropertyExposed is set to true when the parser is generated recursively. The parser needs to
+	// interpret derived properties internally because the derived properties consist of other properties that
+	// may contain the contributory properties.
+	//
+	// [UAX #44 5.13 Property APIs] says:
+	// > The following subtypes of Unicode character properties should generally not be exposed in APIs,
+	// > except in limited circumstances. They may not be useful, particularly in public API collections,
+	// > and may instead prove misleading to the users of such API collections.
+	// >   * Contributory properties are not recommended for public APIs.
+	// > ...
+	// https://unicode.org/reports/tr44/#Property_APIs
+	isContributoryPropertyExposed bool
 }
 
 func newParser(src io.Reader) *parser {
 	return &parser{
-		lex: newLexer(src),
+		lex:                           newLexer(src),
+		isContributoryPropertyExposed: false,
 	}
+}
+
+func (p *parser) exposeContributoryProperty() {
+	p.isContributoryPropertyExposed = true
 }
 
 func (p *parser) parse() (ast astNode, retErr error) {
@@ -548,6 +572,10 @@ func (p *parser) parseCharProp() astNode {
 		propName = ""
 		propVal = sym1
 	}
+	if !p.isContributoryPropertyExposed && ucd.IsContributoryProperty(propName) {
+		p.errMsgDetails = propName
+		raiseSyntaxError(synErrCharPropUnsupported)
+	}
 	pat, err := ucd.NormalizeCharacterProperty(propName, propVal)
 	if err != nil {
 		p.errMsgDetails = fmt.Sprintf("%v", err)
@@ -555,6 +583,7 @@ func (p *parser) parseCharProp() astNode {
 	}
 	if pat != "" {
 		p := newParser(bytes.NewReader([]byte(pat)))
+		p.exposeContributoryProperty()
 		ast, err := p.parse()
 		if err != nil {
 			panic(err)

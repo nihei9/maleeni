@@ -1,5 +1,19 @@
 package ucd
 
+// contributoryProperties is a set of contributory properties maleeni uses internally. Property statuses are
+// defined in the following table.
+//
+// https://unicode.org/reports/tr44/#Property_List_Table
+var contributoryProperties = []string{
+	"oalpha",
+	"olower",
+	"oupper",
+}
+
+func ContributoryProperties() []string {
+	return contributoryProperties
+}
+
 // https://www.unicode.org/reports/tr44/#GC_Values_Table
 var compositGeneralCategories = map[string][]string{
 	// Cased_Letter
