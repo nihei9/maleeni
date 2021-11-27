@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/nihei9/maleeni/spec"
+	"github.com/nihei9/maleeni/ucd"
 )
 
 type ParseErrors struct {
@@ -544,10 +545,10 @@ func (p *parser) parseCharProp() astNode {
 		propName = sym1
 		propVal = sym2
 	} else {
-		propName = "gc"
+		propName = ""
 		propVal = sym1
 	}
-	pat, err := normalizeCharacterProperty(propName, propVal)
+	pat, err := ucd.NormalizeCharacterProperty(propName, propVal)
 	if err != nil {
 		p.errMsgDetails = fmt.Sprintf("%v", err)
 		raiseSyntaxError(synErrCharPropUnsupported)
@@ -560,7 +561,7 @@ func (p *parser) parseCharProp() astNode {
 		}
 		alt = ast
 	} else {
-		cpRanges, inverse, err := findCodePointRanges(propName, propVal)
+		cpRanges, inverse, err := ucd.FindCodePointRanges(propName, propVal)
 		if err != nil {
 			p.errMsgDetails = fmt.Sprintf("%v", err)
 			raiseSyntaxError(synErrCharPropUnsupported)
@@ -655,7 +656,7 @@ func exclude(symbol, base astNode) astNode {
 	if alt, ok := symbol.(*altNode); ok {
 		return exclude(alt.right, exclude(alt.left, base))
 	}
-	
+
 	switch base.(type) {
 	case *altNode:
 		left, right := base.children()

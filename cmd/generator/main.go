@@ -55,7 +55,7 @@ func gen() error {
 			return err
 		}
 	}
-	tmpl, err := template.ParseFiles("../compiler/ucd_table.go.tmpl")
+	tmpl, err := template.ParseFiles("../ucd/codepoint.go.tmpl")
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func gen() error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile("../compiler/ucd_table.go", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("../ucd/codepoint.go", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}

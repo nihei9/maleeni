@@ -65,15 +65,15 @@ func (f field) symbol() string {
 }
 
 func (f field) normalizedSymbol() string {
-	return NormalizeSymbolicValue(string(f))
+	return normalizeSymbolicValue(string(f))
 }
 
 var symValReplacer = strings.NewReplacer("_", "", "-", "", "\x20", "")
 
-// NormalizeSymbolicValue normalizes a symbolic value. The normalized value meets UAX44-LM3.
+// normalizeSymbolicValue normalizes a symbolic value. The normalized value meets UAX44-LM3.
 //
 // https://www.unicode.org/reports/tr44/#UAX44-LM3
-func NormalizeSymbolicValue(s string) string {
+func normalizeSymbolicValue(s string) string {
 	v := strings.ToLower(symValReplacer.Replace(s))
 	if strings.HasPrefix(v, "is") && v != "is" {
 		return v[2:]

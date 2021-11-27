@@ -1,17 +1,19 @@
 //go:generate go run ../cmd/generator/main.go
-//go:generate go fmt ucd_table.go
+//go:generate go fmt codepoint.go
 
-package compiler
+package ucd
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/nihei9/maleeni/ucd"
 )
 
-func normalizeCharacterProperty(propName, propVal string) (string, error) {
-	name, ok := propertyNameAbbs[ucd.NormalizeSymbolicValue(propName)]
+func NormalizeCharacterProperty(propName, propVal string) (string, error) {
+	if propName == "" {
+		propName = "gc"
+	}
+	
+	name, ok := propertyNameAbbs[normalizeSymbolicValue(propName)]
 	if !ok {
 		return "", fmt.Errorf("unsupported character property name: %v", propName)
 	}
@@ -20,7 +22,7 @@ func normalizeCharacterProperty(propName, propVal string) (string, error) {
 		return "", nil
 	}
 	var b strings.Builder
-	yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+	yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 	if !ok {
 		return "", fmt.Errorf("unsupported character property value: %v", propVal)
 	}
@@ -37,14 +39,18 @@ func normalizeCharacterProperty(propName, propVal string) (string, error) {
 	return b.String(), nil
 }
 
-func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool, error) {
-	name, ok := propertyNameAbbs[ucd.NormalizeSymbolicValue(propName)]
+func FindCodePointRanges(propName, propVal string) ([]*CodePointRange, bool, error) {
+	if propName == "" {
+		propName = "gc"
+	}
+
+	name, ok := propertyNameAbbs[normalizeSymbolicValue(propName)]
 	if !ok {
 		return nil, false, fmt.Errorf("unsupported character property name: %v", propName)
 	}
 	switch name {
 	case "gc":
-		val, ok := generalCategoryValueAbbs[ucd.NormalizeSymbolicValue(propVal)]
+		val, ok := generalCategoryValueAbbs[normalizeSymbolicValue(propVal)]
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
@@ -52,7 +58,7 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 		if !ok {
 			vals = []string{val}
 		}
-		var ranges []*ucd.CodePointRange
+		var ranges []*CodePointRange
 		for _, v := range vals {
 			rs, ok := generalCategoryCodePoints[v]
 			if !ok {
@@ -62,7 +68,7 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 		}
 		return ranges, false, nil
 	case "oalpha":
-		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+		yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
@@ -72,7 +78,7 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 			return otherAlphabeticCodePoints, true, nil
 		}
 	case "olower":
-		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+		yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
@@ -82,7 +88,7 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 			return otherLowercaseCodePoints, true, nil
 		}
 	case "oupper":
-		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+		yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
@@ -92,7 +98,7 @@ func findCodePointRanges(propName, propVal string) ([]*ucd.CodePointRange, bool,
 			return otherUppercaseCodePoints, true, nil
 		}
 	case "wspace":
-		yes, ok := binaryValues[ucd.NormalizeSymbolicValue(propVal)]
+		yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
