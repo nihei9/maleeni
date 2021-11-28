@@ -43,6 +43,18 @@ func gen() error {
 			return err
 		}
 	}
+	var scripts *ucd.Scripts
+	{
+		resp, err := http.Get("https://www.unicode.org/Public/13.0.0/ucd/Scripts.txt")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		scripts, err = ucd.ParseScripts(resp.Body, propValAliases)
+		if err != nil {
+			return err
+		}
+	}
 	var propList *ucd.PropList
 	{
 		resp, err := http.Get("https://www.unicode.org/Public/13.0.0/ucd/PropList.txt")
@@ -63,11 +75,13 @@ func gen() error {
 	err = tmpl.Execute(&b, struct {
 		GeneratorName        string
 		UnicodeData          *ucd.UnicodeData
+		Scripts              *ucd.Scripts
 		PropList             *ucd.PropList
 		PropertyValueAliases *ucd.PropertyValueAliases
 	}{
 		GeneratorName:        "generator/main.go",
 		UnicodeData:          unicodeData,
+		Scripts:              scripts,
 		PropList:             propList,
 		PropertyValueAliases: propValAliases,
 	})

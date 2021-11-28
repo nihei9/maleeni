@@ -8,11 +8,19 @@ import (
 	"strings"
 )
 
+const (
+	// https://www.unicode.org/versions/Unicode13.0.0/ch03.pdf
+	// 3.4  Characters and Encoding
+	// > D9 Unicode codespace: A range of integers from 0 to 10FFFF16.
+	codePointMin = 0x0
+	codePointMax = 0x10FFFF
+)
+
 func NormalizeCharacterProperty(propName, propVal string) (string, error) {
 	if propName == "" {
 		propName = "gc"
 	}
-	
+
 	name, ok := propertyNameAbbs[normalizeSymbolicValue(propName)]
 	if !ok {
 		return "", fmt.Errorf("unsupported character property name: %v", propName)
@@ -43,7 +51,7 @@ func IsContributoryProperty(propName string) bool {
 	if propName == "" {
 		return false
 	}
-	
+
 	for _, p := range contributoryProperties {
 		if propName == p {
 			return true
@@ -80,6 +88,31 @@ func FindCodePointRanges(propName, propVal string) ([]*CodePointRange, bool, err
 			ranges = append(ranges, rs...)
 		}
 		return ranges, false, nil
+	case "sc":
+		val, ok := scriptValueAbbs[normalizeSymbolicValue(propVal)]
+		if !ok {
+			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
+		}
+		if val == scriptValueAbbs[normalizeSymbolicValue(scriptDefaultValue)] {
+			var allCPs []*CodePointRange
+			if scriptDefaultRange.From > codePointMin {
+				allCPs = append(allCPs, &CodePointRange{
+					From: codePointMin,
+					To: scriptDefaultRange.From - 1,
+				})
+			}
+			if scriptDefaultRange.To < codePointMax {
+				allCPs = append(allCPs, &CodePointRange{
+					From: scriptDefaultRange.To + 1,
+					To: codePointMax,
+				})
+			}
+			for _, cp := range scriptCodepoints {
+				allCPs = append(allCPs, cp...)
+			}
+			return allCPs, true, nil
+		}
+		return scriptCodepoints[val], false, nil
 	case "oalpha":
 		yes, ok := binaryValues[normalizeSymbolicValue(propVal)]
 		if !ok {

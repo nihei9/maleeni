@@ -6,13 +6,16 @@ type PropertyValueAliases struct {
 	GeneralCategory             map[string]string
 	GeneralCategoryDefaultRange *CodePointRange
 	GeneralCategoryDefaultValue string
+
+	Script map[string]string
 }
 
 // ParsePropertyValueAliases parses the PropertyValueAliases.txt.
 func ParsePropertyValueAliases(r io.Reader) (*PropertyValueAliases, error) {
-	catName2Abbs := map[string]string{}
+	gcAbbs := map[string]string{}
 	var defaultGCCPRange *CodePointRange
 	var defaultGCVal string
+	scAbbs := map[string]string{}
 	p := newParser(r)
 	for p.parse() {
 		// https://www.unicode.org/reports/tr44/#Property_Value_Aliases
@@ -21,14 +24,26 @@ func ParsePropertyValueAliases(r io.Reader) (*PropertyValueAliases, error) {
 		// > field specifies the long symbolic name for that value of that property. These are the preferred
 		// > aliases. Additional aliases for some property values may be specified in the fourth or subsequent
 		// > fields.
-		if len(p.fields) > 0 && p.fields[0].symbol() == "gc" {
-			catNameShort := p.fields[1].normalizedSymbol()
-			catNameLong := p.fields[2].normalizedSymbol()
-			catName2Abbs[catNameShort] = catNameShort
-			catName2Abbs[catNameLong] = catNameShort
-			for _, f := range p.fields[3:] {
-				catNameOther := f.normalizedSymbol()
-				catName2Abbs[catNameOther] = catNameShort
+		if len(p.fields) > 0 {
+			switch p.fields[0].symbol() {
+			case "gc":
+				gcShort := p.fields[1].normalizedSymbol()
+				gcLong := p.fields[2].normalizedSymbol()
+				gcAbbs[gcShort] = gcShort
+				gcAbbs[gcLong] = gcShort
+				for _, f := range p.fields[3:] {
+					gcShortOther := f.normalizedSymbol()
+					gcAbbs[gcShortOther] = gcShort
+				}
+			case "sc":
+				scShort := p.fields[1].normalizedSymbol()
+				scLong := p.fields[2].normalizedSymbol()
+				scAbbs[scShort] = scShort
+				scAbbs[scLong] = scShort
+				for _, f := range p.fields[3:] {
+					scShortOther := f.normalizedSymbol()
+					scAbbs[scShortOther] = scShort
+				}
 			}
 		}
 
@@ -55,9 +70,10 @@ func ParsePropertyValueAliases(r io.Reader) (*PropertyValueAliases, error) {
 		return nil, p.err
 	}
 	return &PropertyValueAliases{
-		GeneralCategory:             catName2Abbs,
+		GeneralCategory:             gcAbbs,
 		GeneralCategoryDefaultRange: defaultGCCPRange,
 		GeneralCategoryDefaultValue: defaultGCVal,
+		Script:                      scAbbs,
 	}, nil
 }
 

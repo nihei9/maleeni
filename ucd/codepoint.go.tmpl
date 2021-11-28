@@ -7,9 +7,30 @@ var generalCategoryValueAbbs = map[string]string{ {{ range $long, $abb := .Prope
     "{{ $long }}": "{{ $abb }}",{{ end }}
 }
 
+// https://www.unicode.org/Public/13.0.0/ucd/PropertyValueAliases.txt
+var scriptValueAbbs = map[string]string{ {{ range $long, $abb := .PropertyValueAliases.Script }}
+    "{{ $long }}": "{{ $abb }}",{{ end }}
+}
+
 // https://www.unicode.org/Public/13.0.0/ucd/UnicodeData.txt
 var generalCategoryCodePoints = map[string][]*CodePointRange{ {{ range $propName, $codePoints := .UnicodeData.GeneralCategory }}
 	"{{ $propName }}": { {{ range $codePoints }}
+	   &CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
+	},{{ end }}
+}
+
+// https://www.unicode.org/Public/13.0.0/ucd/Scripts.txt
+var (
+	scriptDefaultRange = &CodePointRange{
+		From: rune({{ .Scripts.ScriptDefaultRange.From }}),
+		To: rune({{ .Scripts.ScriptDefaultRange.To }}),
+	}
+	scriptDefaultValue = "{{ .Scripts.ScriptDefaultValue }}"
+)
+
+// https://www.unicode.org/Public/13.0.0/ucd/Scripts.txt
+var scriptCodepoints = map[string][]*CodePointRange{ {{ range $script, $codePoints := .Scripts.Script }}
+	"{{ $script }}": { {{ range $codePoints }}
 	   &CodePointRange{From: rune({{ .From }}), To: rune({{ .To }})},{{ end }}
 	},{{ end }}
 }

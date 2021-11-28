@@ -62,6 +62,8 @@ var derivedCoreProperties = map[string][]string{
 var propertyNameAbbs = map[string]string{
 	"generalcategory": "gc",
 	"gc":              "gc",
+	"script":          "sc",
+	"sc":              "sc",
 	"alphabetic":      "alpha",
 	"alpha":           "alpha",
 	"otheralphabetic": "oalpha",
