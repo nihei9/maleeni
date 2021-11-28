@@ -75,6 +75,25 @@ func FindCodePointRanges(propName, propVal string) ([]*CodePointRange, bool, err
 		if !ok {
 			return nil, false, fmt.Errorf("unsupported character property value: %v", propVal)
 		}
+		if val == generalCategoryValueAbbs[normalizeSymbolicValue(generalCategoryDefaultValue)] {
+			var allCPs []*CodePointRange
+			if generalCategoryDefaultRange.From > codePointMin {
+				allCPs = append(allCPs, &CodePointRange{
+					From: codePointMin,
+					To:   generalCategoryDefaultRange.From - 1,
+				})
+			}
+			if generalCategoryDefaultRange.To < codePointMax {
+				allCPs = append(allCPs, &CodePointRange{
+					From: generalCategoryDefaultRange.To + 1,
+					To:   codePointMax,
+				})
+			}
+			for _, cp := range generalCategoryCodePoints {
+				allCPs = append(allCPs, cp...)
+			}
+			return allCPs, true, nil
+		}
 		vals, ok := compositGeneralCategories[val]
 		if !ok {
 			vals = []string{val}
@@ -98,13 +117,13 @@ func FindCodePointRanges(propName, propVal string) ([]*CodePointRange, bool, err
 			if scriptDefaultRange.From > codePointMin {
 				allCPs = append(allCPs, &CodePointRange{
 					From: codePointMin,
-					To: scriptDefaultRange.From - 1,
+					To:   scriptDefaultRange.From - 1,
 				})
 			}
 			if scriptDefaultRange.To < codePointMax {
 				allCPs = append(allCPs, &CodePointRange{
 					From: scriptDefaultRange.To + 1,
-					To: codePointMax,
+					To:   codePointMax,
 				})
 			}
 			for _, cp := range scriptCodepoints {

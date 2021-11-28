@@ -12,6 +12,15 @@ var scriptValueAbbs = map[string]string{ {{ range $long, $abb := .PropertyValueA
     "{{ $long }}": "{{ $abb }}",{{ end }}
 }
 
+// https://www.unicode.org/Public/13.0.0/ucd/PropertyValueAliases.txt
+var (
+	generalCategoryDefaultRange = &CodePointRange{
+		From: rune({{ .PropertyValueAliases.GeneralCategoryDefaultRange.From }}),
+		To: rune({{ .PropertyValueAliases.GeneralCategoryDefaultRange.To }}),
+	}
+	generalCategoryDefaultValue = "{{ .PropertyValueAliases.GeneralCategoryDefaultValue }}"
+)
+
 // https://www.unicode.org/Public/13.0.0/ucd/UnicodeData.txt
 var generalCategoryCodePoints = map[string][]*CodePointRange{ {{ range $propName, $codePoints := .UnicodeData.GeneralCategory }}
 	"{{ $propName }}": { {{ range $codePoints }}
