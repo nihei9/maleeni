@@ -1,8 +1,11 @@
 package compiler
 
 import (
+	"bytes"
 	"fmt"
 
+	"github.com/nihei9/maleeni/compiler/dfa"
+	psr "github.com/nihei9/maleeni/compiler/parser"
 	"github.com/nihei9/maleeni/compressor"
 	"github.com/nihei9/maleeni/spec"
 )
@@ -23,17 +26,24 @@ type compilerConfig struct {
 	compLv int
 }
 
-func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSpec, error) {
+type CompileError struct {
+	Kind     spec.LexKindName
+	Fragment bool
+	Cause    error
+	Detail   string
+}
+
+func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSpec, error, []*CompileError) {
 	err := lexspec.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("invalid lexical specification:\n%w", err)
+		return nil, fmt.Errorf("invalid lexical specification:\n%w", err), nil
 	}
 
 	config := &compilerConfig{}
 	for _, opt := range opts {
 		err := opt(config)
 		if err != nil {
-			return nil, err
+			return nil, err, nil
 		}
 	}
 
@@ -44,9 +54,9 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 	}
 	for i, es := range modeEntries[1:] {
 		modeName := modeNames[i+1]
-		modeSpec, err := compile(es, modeName2ID, fragmetns, config)
+		modeSpec, err, cerrs := compile(es, modeName2ID, fragmetns, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to compile in %v mode: %w", modeName, err)
+			return nil, fmt.Errorf("failed to compile in %v mode: %w", modeName, err), cerrs
 		}
 		modeSpecs = append(modeSpecs, modeSpec)
 	}
@@ -95,10 +105,10 @@ func Compile(lexspec *spec.LexSpec, opts ...CompilerOption) (*spec.CompiledLexSp
 		KindIDs:          kindIDs,
 		CompressionLevel: config.compLv,
 		Specs:            modeSpecs,
-	}, nil
+	}, nil, nil
 }
 
-func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeID, map[string]*spec.LexEntry) {
+func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec.LexModeName, map[spec.LexModeName]spec.LexModeID, map[spec.LexKindName]*spec.LexEntry) {
 	modeNames := []spec.LexModeName{
 		spec.LexModeNameNil,
 		spec.LexModeNameDefault,
@@ -112,10 +122,10 @@ func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec
 		nil,
 		{},
 	}
-	fragments := map[string]*spec.LexEntry{}
+	fragments := map[spec.LexKindName]*spec.LexEntry{}
 	for _, e := range entries {
 		if e.Fragment {
-			fragments[e.Kind.String()] = e
+			fragments[e.Kind] = e
 			continue
 		}
 		ms := e.Modes
@@ -139,15 +149,24 @@ func groupEntriesByLexMode(entries []*spec.LexEntry) ([][]*spec.LexEntry, []spec
 	return modeEntries, modeNames, modeName2ID, fragments
 }
 
-func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.LexModeID, fragments map[string]*spec.LexEntry, config *compilerConfig) (*spec.CompiledLexModeSpec, error) {
+func compile(
+	entries []*spec.LexEntry,
+	modeName2ID map[spec.LexModeName]spec.LexModeID,
+	fragments map[spec.LexKindName]*spec.LexEntry,
+	config *compilerConfig,
+) (*spec.CompiledLexModeSpec, error, []*CompileError) {
 	var kindNames []spec.LexKindName
+	kindIDToName := map[spec.LexModeKindID]spec.LexKindName{}
 	var patterns map[spec.LexModeKindID][]byte
 	{
 		kindNames = append(kindNames, spec.LexKindNameNil)
 		patterns = map[spec.LexModeKindID][]byte{}
 		for i, e := range entries {
+			kindID := spec.LexModeKindID(i + 1)
+
 			kindNames = append(kindNames, e.Kind)
-			patterns[spec.LexModeKindID(i+1)] = []byte(e.Pattern)
+			kindIDToName[kindID] = e.Kind
+			patterns[kindID] = []byte(e.Pattern)
 		}
 	}
 
@@ -170,39 +189,141 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 		pop = append(pop, popV)
 	}
 
-	fragmentPatterns := map[string][]byte{}
+	fragmentPatterns := map[spec.LexKindName][]byte{}
 	for k, e := range fragments {
 		fragmentPatterns[k] = []byte(e.Pattern)
 	}
 
-	var root astNode
-	var symTab *symbolTable
+	fragmentCPTrees := make(map[spec.LexKindName]psr.CPTree, len(fragmentPatterns))
 	{
-		pats := make([]*patternEntry, len(patterns)+1)
-		pats[spec.LexModeKindIDNil] = &patternEntry{
-			id: spec.LexModeKindIDNil,
+		var cerrs []*CompileError
+		for kind, pat := range fragmentPatterns {
+			p := psr.NewParser(kind, bytes.NewReader(pat))
+			t, err := p.Parse()
+			if err != nil {
+				if err == psr.ParseErr {
+					detail, cause := p.Error()
+					cerrs = append(cerrs, &CompileError{
+						Kind:     kind,
+						Fragment: true,
+						Cause:    cause,
+						Detail:   detail,
+					})
+				} else {
+					cerrs = append(cerrs, &CompileError{
+						Kind:     kind,
+						Fragment: true,
+						Cause:    err,
+					})
+				}
+				continue
+			}
+			fragmentCPTrees[kind] = t
+		}
+		if len(cerrs) > 0 {
+			return nil, fmt.Errorf("compile error"), cerrs
+		}
+
+		err := psr.CompleteFragments(fragmentCPTrees)
+		if err != nil {
+			if err == psr.ParseErr {
+				for _, frag := range fragmentCPTrees {
+					kind, frags, err := frag.Describe()
+					if err != nil {
+						return nil, err, nil
+					}
+
+					cerrs = append(cerrs, &CompileError{
+						Kind:     kind,
+						Fragment: true,
+						Cause:    fmt.Errorf("fragment contains undefined fragments or cycles"),
+						Detail:   fmt.Sprintf("%v", frags),
+					})
+				}
+
+				return nil, fmt.Errorf("compile error"), cerrs
+			}
+
+			return nil, err, nil
+		}
+	}
+
+	cpTrees := map[spec.LexModeKindID]psr.CPTree{}
+	{
+		pats := make([]*psr.PatternEntry, len(patterns)+1)
+		pats[spec.LexModeKindIDNil] = &psr.PatternEntry{
+			ID: spec.LexModeKindIDNil,
 		}
 		for id, pattern := range patterns {
-			pats[id] = &patternEntry{
-				id:      id,
-				pattern: pattern,
+			pats[id] = &psr.PatternEntry{
+				ID:      id,
+				Pattern: pattern,
 			}
 		}
 
-		var err error
-		root, symTab, err = parse(pats, fragmentPatterns)
-		if err != nil {
-			return nil, err
+		var cerrs []*CompileError
+		for _, pat := range pats {
+			if pat.ID == spec.LexModeKindIDNil {
+				continue
+			}
+
+			p := psr.NewParser(kindIDToName[pat.ID], bytes.NewReader(pat.Pattern))
+			t, err := p.Parse()
+			if err != nil {
+				if err == psr.ParseErr {
+					detail, cause := p.Error()
+					cerrs = append(cerrs, &CompileError{
+						Kind:     kindIDToName[pat.ID],
+						Fragment: false,
+						Cause:    cause,
+						Detail:   detail,
+					})
+				} else {
+					cerrs = append(cerrs, &CompileError{
+						Kind:     kindIDToName[pat.ID],
+						Fragment: false,
+						Cause:    err,
+					})
+				}
+				continue
+			}
+
+			complete, err := psr.ApplyFragments(t, fragmentCPTrees)
+			if err != nil {
+				return nil, err, nil
+			}
+			if !complete {
+				_, frags, err := t.Describe()
+				if err != nil {
+					return nil, err, nil
+				}
+
+				cerrs = append(cerrs, &CompileError{
+					Kind:     kindIDToName[pat.ID],
+					Fragment: false,
+					Cause:    fmt.Errorf("pattern contains undefined fragments"),
+					Detail:   fmt.Sprintf("%v", frags),
+				})
+				continue
+			}
+
+			cpTrees[pat.ID] = t
+		}
+		if len(cerrs) > 0 {
+			return nil, fmt.Errorf("compile error"), cerrs
 		}
 	}
 
 	var tranTab *spec.TransitionTable
 	{
-		dfa := genDFA(root, symTab)
-		var err error
-		tranTab, err = genTransitionTable(dfa)
+		root, symTab, err := dfa.ConvertCPTreeToByteTree(cpTrees)
 		if err != nil {
-			return nil, err
+			return nil, err, nil
+		}
+		d := dfa.GenDFA(root, symTab)
+		tranTab, err = dfa.GenTransitionTable(d)
+		if err != nil {
+			return nil, err, nil
 		}
 	}
 
@@ -211,12 +332,12 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 	case 2:
 		tranTab, err = compressTransitionTableLv2(tranTab)
 		if err != nil {
-			return nil, err
+			return nil, err, nil
 		}
 	case 1:
 		tranTab, err = compressTransitionTableLv1(tranTab)
 		if err != nil {
-			return nil, err
+			return nil, err, nil
 		}
 	}
 
@@ -225,7 +346,7 @@ func compile(entries []*spec.LexEntry, modeName2ID map[spec.LexModeName]spec.Lex
 		Push:      push,
 		Pop:       pop,
 		DFA:       tranTab,
-	}, nil
+	}, nil, nil
 }
 
 const (

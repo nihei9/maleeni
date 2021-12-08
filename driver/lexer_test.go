@@ -776,8 +776,11 @@ func TestLexer_Next(t *testing.T) {
 	for i, tt := range test {
 		for compLv := compiler.CompressionLevelMin; compLv <= compiler.CompressionLevelMax; compLv++ {
 			t.Run(fmt.Sprintf("#%v-%v", i, compLv), func(t *testing.T) {
-				clspec, err := compiler.Compile(tt.lspec, compiler.CompressionLevel(compLv))
+				clspec, err, cerrs := compiler.Compile(tt.lspec, compiler.CompressionLevel(compLv))
 				if err != nil {
+					for _, cerr := range cerrs {
+						t.Logf("%#v", cerr)
+					}
 					t.Fatalf("unexpected error: %v", err)
 				}
 				opts := []LexerOption{}
@@ -821,7 +824,7 @@ func TestLexer_Next_WithPosition(t *testing.T) {
 		},
 	}
 
-	clspec, err := compiler.Compile(lspec, compiler.CompressionLevel(compiler.CompressionLevelMax))
+	clspec, err, _ := compiler.Compile(lspec, compiler.CompressionLevel(compiler.CompressionLevelMax))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

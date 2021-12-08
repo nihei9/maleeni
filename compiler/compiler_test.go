@@ -85,7 +85,7 @@ func TestCompile(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%v", err)
 			}
-			clspec, err := Compile(lspec)
+			clspec, err, _ := Compile(lspec)
 			if tt.Err {
 				if err == nil {
 					t.Fatalf("expected an error")
@@ -95,7 +95,7 @@ func TestCompile(t *testing.T) {
 				}
 			} else {
 				if err != nil {
-					t.Fatalf("unexpected error")
+					t.Fatalf("unexpected error: %v", err)
 				}
 				if clspec == nil {
 					t.Fatalf("Compile function must return a compiled specification")

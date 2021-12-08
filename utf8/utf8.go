@@ -83,15 +83,6 @@ var (
 	cBlk4Last = cBlks4[len(cBlks4)-1]
 )
 
-func AllCharBlocks() []*CharBlock {
-	var blks []*CharBlock
-	blks = append(blks, cBlks1...)
-	blks = append(blks, cBlks2...)
-	blks = append(blks, cBlks3...)
-	blks = append(blks, cBlks4...)
-	return blks
-}
-
 func GenCharBlocks(from, to []byte) ([]*CharBlock, error) {
 	switch len(from) {
 	case 1:

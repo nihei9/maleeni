@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/nihei9/maleeni/compiler"
 	"github.com/nihei9/maleeni/spec"
@@ -38,8 +40,17 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 		return fmt.Errorf("Cannot read a lexical specification: %w", err)
 	}
 
-	clspec, err := compiler.Compile(lspec, compiler.CompressionLevel(*compileFlags.compLv))
+	clspec, err, cerrs := compiler.Compile(lspec, compiler.CompressionLevel(*compileFlags.compLv))
 	if err != nil {
+		if len(cerrs) > 0 {
+			var b strings.Builder
+			writeCompileError(&b, cerrs[0])
+			for _, cerr := range cerrs[1:] {
+				fmt.Fprintf(&b, "\n")
+				writeCompileError(&b, cerr)
+			}
+			return fmt.Errorf(b.String())
+		}
 		return err
 	}
 	err = writeCompiledLexSpec(clspec, *compileFlags.output)
@@ -48,6 +59,16 @@ func runCompile(cmd *cobra.Command, args []string) (retErr error) {
 	}
 
 	return nil
+}
+
+func writeCompileError(w io.Writer, cerr *compiler.CompileError) {
+	if cerr.Fragment {
+		fmt.Fprintf(w, "fragment ")
+	}
+	fmt.Fprintf(w, "%v: %v", cerr.Kind, cerr.Cause)
+	if cerr.Detail != "" {
+		fmt.Fprintf(w, ": %v", cerr.Detail)
+	}
 }
 
 func readLexSpec(path string) (*spec.LexSpec, error) {
