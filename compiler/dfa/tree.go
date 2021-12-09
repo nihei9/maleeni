@@ -512,7 +512,7 @@ func ConvertCPTreeToByteTree(cpTrees map[spec.LexModeKindID]parser.CPTree) (byte
 
 func convCPTreeToByteTree(cpTree parser.CPTree) (byteTree, error) {
 	if from, to, ok := cpTree.Range(); ok {
-		bs, err := utf8.GenCharBlocks([]byte(string(from)), []byte(string(to)))
+		bs, err := utf8.GenCharBlocks(from, to)
 		if err != nil {
 			return nil, err
 		}
