@@ -205,7 +205,7 @@ func (p *parser) parseSingleChar() CPTree {
 		}
 		inverse := exclude(elem, genAnyCharAST())
 		if inverse == nil {
-			panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+			p.raiseParseError(synErrUnmatchablePattern, "")
 		}
 		for {
 			elem := p.parseBExpElem()
@@ -214,7 +214,7 @@ func (p *parser) parseSingleChar() CPTree {
 			}
 			inverse = exclude(elem, inverse)
 			if inverse == nil {
-				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+				p.raiseParseError(synErrUnmatchablePattern, "")
 			}
 		}
 		if p.consume(tokenKindEOF) {
@@ -355,12 +355,12 @@ func (p *parser) parseCharProp() CPTree {
 			r := cpRanges[0]
 			alt = exclude(newRangeSymbolNode(r.From, r.To), genAnyCharAST())
 			if alt == nil {
-				panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+				p.raiseParseError(synErrUnmatchablePattern, "")
 			}
 			for _, r := range cpRanges[1:] {
 				alt = exclude(newRangeSymbolNode(r.From, r.To), alt)
 				if alt == nil {
-					panic(fmt.Errorf("a pattern that isn't matching any symbols"))
+					p.raiseParseError(synErrUnmatchablePattern, "")
 				}
 			}
 		} else {

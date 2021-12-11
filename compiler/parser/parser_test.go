@@ -472,6 +472,14 @@ func TestParse(t *testing.T) {
 			syntaxError: synErrRangePropIsUnavailable,
 		},
 		{
+			pattern:     "[^\\u{0000}-\\u{10FFFF}]",
+			syntaxError: synErrUnmatchablePattern,
+		},
+		{
+			pattern:     "[^\\u{0000}-\\u{FFFF}\\u{010000}-\\u{10FFFF}]",
+			syntaxError: synErrUnmatchablePattern,
+		},
+		{
 			pattern: "[^]",
 			ast:     newSymbolNode('^'),
 		},

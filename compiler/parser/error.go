@@ -15,6 +15,7 @@ var (
 	// syntax errors
 	synErrUnexpectedToken        = fmt.Errorf("unexpected token")
 	synErrNullPattern            = fmt.Errorf("a pattern must be a non-empty byte sequence")
+	synErrUnmatchablePattern     = fmt.Errorf("a pattern cannot match any characters")
 	synErrAltLackOfOperand       = fmt.Errorf("an alternation expression must have operands")
 	synErrRepNoTarget            = fmt.Errorf("a repeat expression must have an operand")
 	synErrGroupNoElem            = fmt.Errorf("a grouping expression must include at least one character")
