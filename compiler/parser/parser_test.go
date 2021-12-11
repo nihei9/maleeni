@@ -408,8 +408,28 @@ func TestParse(t *testing.T) {
 			ast:     newSymbolNode('N'),
 		},
 		{
+			pattern: "[\\u{0061}-\\u{007A}]",
+			ast:     newRangeSymbolNode('a', 'z'),
+		},
+		{
 			pattern:     "[\\p{Lu}]",
 			skipTestAST: true,
+		},
+		{
+			pattern:     "[a-\\p{Lu}]",
+			syntaxError: synErrRangePropIsUnavailable,
+		},
+		{
+			pattern:     "[\\p{Lu}-z]",
+			syntaxError: synErrRangePropIsUnavailable,
+		},
+		{
+			pattern:     "[\\p{Lu}-\\p{Ll}]",
+			syntaxError: synErrRangePropIsUnavailable,
+		},
+		{
+			pattern:     "[z-a]",
+			syntaxError: synErrRangeInvalidOrder,
 		},
 		{
 			pattern:     "a[]",
@@ -422,6 +442,34 @@ func TestParse(t *testing.T) {
 		{
 			pattern:     "[]",
 			syntaxError: synErrBExpNoElem,
+		},
+		{
+			pattern:     "[^a-z]",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "[^\\u{004E}]",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "[^\\u{0061}-\\u{007A}]",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "[^\\p{Lu}]",
+			skipTestAST: true,
+		},
+		{
+			pattern:     "[^a-\\p{Lu}]",
+			syntaxError: synErrRangePropIsUnavailable,
+		},
+		{
+			pattern:     "[^\\p{Lu}-z]",
+			syntaxError: synErrRangePropIsUnavailable,
+		},
+		{
+			pattern:     "[^\\p{Lu}-\\p{Ll}]",
+			syntaxError: synErrRangePropIsUnavailable,
 		},
 		{
 			pattern: "[^]",
@@ -857,23 +905,24 @@ func TestParse(t *testing.T) {
 			p := NewParser(spec.LexKindName("test"), strings.NewReader(tt.pattern))
 			root, err := p.Parse()
 			if tt.syntaxError != nil {
-				// printCPTree(os.Stdout, ast, "", "")
-				if err == nil {
-					t.Fatalf("expected syntax error: got: nil")
+				// printCPTree(os.Stdout, root, "", "")
+				if err != ParseErr {
+					t.Fatalf("unexpected error: want: %v, got: %v", ParseErr, err)
 				}
 				_, synErr := p.Error()
 				if synErr != tt.syntaxError {
 					t.Fatalf("unexpected syntax error: want: %v, got: %v", tt.syntaxError, synErr)
 				}
 				if root != nil {
-					t.Fatalf("tree is not nil")
+					t.Fatalf("tree must be nil")
 				}
 			} else {
 				if err != nil {
-					t.Fatal(err)
+					detail, cause := p.Error()
+					t.Fatalf("%v: %v: %v", err, cause, detail)
 				}
 				if root == nil {
-					t.Fatal("tree is nil")
+					t.Fatal("tree must be non-nil")
 				}
 
 				complete, err := ApplyFragments(root, fragmentTrees)
@@ -884,7 +933,7 @@ func TestParse(t *testing.T) {
 					t.Fatalf("incomplete fragments")
 				}
 
-				// printCPTree(os.Stdout, ast, "", "")
+				// printCPTree(os.Stdout, root, "", "")
 				if !tt.skipTestAST {
 					r := root.(*rootNode)
 					testAST(t, tt.ast, r.tree)

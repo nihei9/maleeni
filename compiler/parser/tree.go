@@ -159,7 +159,7 @@ func newRangeSymbolNode(from, to rune) *symbolNode {
 }
 
 func (n *symbolNode) String() string {
-	return fmt.Sprintf("symbol: %v - %v", n.From, n.To)
+	return fmt.Sprintf("symbol: %X..%X", n.From, n.To)
 }
 
 func (n *symbolNode) Range() (rune, rune, bool) {
@@ -424,13 +424,20 @@ func printCPTree(w io.Writer, t CPTree, ruledLine string, childRuledLinePrefix s
 		return
 	}
 	fmt.Fprintf(w, "%v%v\n", ruledLine, t)
-	left, right := t.children()
 	children := []CPTree{}
-	if left != nil {
-		children = append(children, left)
-	}
-	if right != nil {
-		children = append(children, right)
+	switch n := t.(type) {
+	case *rootNode:
+		children = append(children, n.tree)
+	case *fragmentNode:
+		children = append(children, n.tree)
+	default:
+		left, right := t.children()
+		if left != nil {
+			children = append(children, left)
+		}
+		if right != nil {
+			children = append(children, right)
+		}
 	}
 	num := len(children)
 	for i, child := range children {

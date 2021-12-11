@@ -4,7 +4,7 @@ import "fmt"
 
 var (
 	ParseErr = fmt.Errorf("parse error")
-	
+
 	// lexical errors
 	synErrIncompletedEscSeq     = fmt.Errorf("incompleted escape sequence; unexpected EOF following \\")
 	synErrInvalidEscSeq         = fmt.Errorf("invalid escape sequence")
@@ -25,6 +25,8 @@ var (
 	synErrBExpUnclosed           = fmt.Errorf("unclosed bracket expression")
 	synErrBExpInvalidForm        = fmt.Errorf("invalid bracket expression")
 	synErrRangeInvalidOrder      = fmt.Errorf("a range expression with invalid order")
+	synErrRangePropIsUnavailable = fmt.Errorf("a property expression is unavailable in a range expression")
+	synErrRangeInvalidForm       = fmt.Errorf("invalid range expression")
 	synErrCPExpInvalidForm       = fmt.Errorf("invalid code point expression")
 	synErrCPExpOutOfRange        = fmt.Errorf("a code point must be between U+0000 to U+10FFFF")
 	synErrCharPropExpInvalidForm = fmt.Errorf("invalid character property expression")

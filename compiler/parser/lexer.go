@@ -176,18 +176,19 @@ func (l *lexer) next() (*token, error) {
 		if err != nil {
 			return nil, err
 		}
-		switch tok.kind {
-		case tokenKindBExpClose:
-			l.modeStack.pop()
-		case tokenKindCharRange:
-			l.rangeState = rangeStateExpectRangeTerminator
-		case tokenKindChar:
+		if tok.kind == tokenKindChar || tok.kind == tokenKindCodePointLeader || tok.kind == tokenKindCharPropLeader {
 			switch l.rangeState {
 			case rangeStateReady:
 				l.rangeState = rangeStateReadRangeInitiator
 			case rangeStateExpectRangeTerminator:
 				l.rangeState = rangeStateReady
 			}
+		}
+		switch tok.kind {
+		case tokenKindBExpClose:
+			l.modeStack.pop()
+		case tokenKindCharRange:
+			l.rangeState = rangeStateExpectRangeTerminator
 		case tokenKindCodePointLeader:
 			l.modeStack.push(lexerModeCPExp)
 		case tokenKindCharPropLeader:

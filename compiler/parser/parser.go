@@ -16,7 +16,7 @@ type PatternEntry struct {
 }
 
 type parser struct {
-	kind spec.LexKindName
+	kind      spec.LexKindName
 	lex       *lexer
 	peekedTok *token
 	lastTok   *token
@@ -46,7 +46,7 @@ type parser struct {
 
 func NewParser(kind spec.LexKindName, src io.Reader) *parser {
 	return &parser{
-		kind: kind,
+		kind:                          kind,
 		lex:                           newLexer(src),
 		isContributoryPropertyExposed: false,
 	}
@@ -243,27 +243,40 @@ func (p *parser) parseSingleChar() CPTree {
 }
 
 func (p *parser) parseBExpElem() CPTree {
-	if p.consume(tokenKindCodePointLeader) {
-		return p.parseCodePoint()
+	var left CPTree
+	switch {
+	case p.consume(tokenKindCodePointLeader):
+		left = p.parseCodePoint()
+	case p.consume(tokenKindCharPropLeader):
+		left = p.parseCharProp()
+		if p.consume(tokenKindCharRange) {
+			p.raiseParseError(synErrRangePropIsUnavailable, "")
+		}
+	default:
+		left = p.parseNormalChar()
 	}
-	if p.consume(tokenKindCharPropLeader) {
-		return p.parseCharProp()
-	}
-	left := p.parseNormalChar()
 	if left == nil {
 		return nil
 	}
 	if !p.consume(tokenKindCharRange) {
 		return left
 	}
-	right := p.parseNormalChar()
+	var right CPTree
+	switch {
+	case p.consume(tokenKindCodePointLeader):
+		right = p.parseCodePoint()
+	case p.consume(tokenKindCharPropLeader):
+		p.raiseParseError(synErrRangePropIsUnavailable, "")
+	default:
+		right = p.parseNormalChar()
+	}
 	if right == nil {
-		panic(fmt.Errorf("invalid range expression"))
+		p.raiseParseError(synErrRangeInvalidForm, "")
 	}
 	from, _, _ := left.Range()
 	_, to, _ := right.Range()
 	if !isValidOrder(from, to) {
-		p.raiseParseError(synErrRangeInvalidOrder, fmt.Sprintf("[%v-%v]", from, to))
+		p.raiseParseError(synErrRangeInvalidOrder, fmt.Sprintf("%X..%X", from, to))
 	}
 	return newRangeSymbolNode(from, to)
 }
@@ -484,7 +497,7 @@ func genAltNode(cs ...CPTree) CPTree {
 func (p *parser) expect(expected tokenKind) {
 	if !p.consume(expected) {
 		tok := p.peekedTok
-		p.raiseParseError(synErrUnexpectedToken, fmt.Sprintf("unexpected token; expected: %v, actual: %v", expected, tok.kind))
+		p.raiseParseError(synErrUnexpectedToken, fmt.Sprintf("expected: %v, actual: %v", expected, tok.kind))
 	}
 }
 
