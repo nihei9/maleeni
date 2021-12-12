@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.0
+
+* [12bfeb8](12bfeb83ae4a804d05c7f6eab5c6b2b972b7d8d2) - Refactor the UCD file parsers.
+* [2359623](2359623e6e1a85047953ff8838850d5c0685430b) - Fix key of `generalCategoryCodePoints` map. Use the abbreviation `cn` of the general category value `unassigned` as a key of `generalCategoryCodePoints` map.
+* [bedf0c1](bedf0c1c72a2e13e08fbaa221b8a4c3ccf3a57a7), [6ebbc8f](6ebbc8f9829bf0f3127367769c662d1a8f881a2d), [e9af227](e9af22730e68908f46c9aee3b35e133d34191bef), [301d02d](301d02dd659ae8dea326684984710729401b92d1) - Support `White_Space`, `Lowercase`, `Uppercase`, `Alphabetic`, and `Script` properties. (Meet [RL1.2 of UTS #18](https://unicode.org/reports/tr18/#RL1.2) partially)
+* [10d0c5d](10d0c5dfeb9749f4226f86d5ac915718c5bec5c9) - Make character properties available in an inverse expression (Make [^\p{...}] available).
+* [5ebc2f4](5ebc2f4e9aa55bb77d82da7d9915a4140cddfbfb) - Move all UCD-related processes to _ucd_ package.
+* [cb9d92f](cb9d92f0b4e0097579f6e5da1dc6e2f063b532a9) - Make contributory properties unavailable except internal use.
+* [f0870a4](f0870a4d2ec589bf5de268a54d51c1da197ed882) - Remove default value's code points of `General_Category`.
+* [847bcc7](847bcc7c63e900e4abc2cba58dbeb85d36967624) - Move UTF8-related processes to _utf8_ package.
+* [19b68a5](19b68a5ca013c1ff7562e608db7964973fd691b2), [e3195d8](e3195d8e77c84b036a1ec1e3e03dc6e6aba3c8a1), [d595194](d595194791483a71c5afaff2aa3f4b575a9d22b7), [4321811](4321811c496d877eb452a38081109b96e12bd1be) - Use `CPTree` and `byteTree` instead of AST. `CPTree` represents characters in code points, while `byteTree` represents characters in UTF-8 byte sequences. In the past, when we excluded a part of a character range, like `[^...]`, we needed to subtract byte sequences from each other. This process is complicated. Therefore, we simplified the UTF-8 related processing by calculating the character range in code points and then converting it to UTF-8 byte sequences.
+* [46d49df](46d49df654e9e152680717830aec70b65e8c507c) - Make character properties unavailable in bracket expressions.
+* [3ec662c](3ec662c34841bb5bcf05166d1b9efd800b1e9ea3) - Add tests of _compiler/parser_ package.
+* [a630029](a630029b6cd4a1e61025f6c0a40e198b90802946) - Remove `--lex-spec` option from `maleeni compile` command.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.5.1...v0.6.0)
+
 ## v0.5.1
 
 * [fe865a8](https://github.com/nihei9/maleeni/commit/fe865a812401c2c612f2cd17cedd4728dc4798f7) - Generate constant values representing mode IDs, mode names, kind IDs, and kind names.
