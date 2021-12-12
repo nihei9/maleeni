@@ -51,7 +51,7 @@ Save the above specification to a file in UTF-8. In this explanation, the file n
 Next, generate a DFA from the lexical specification using `maleeni compile` command.
 
 ```sh
-$ maleeni compile -l statement.json -o statementc.json
+$ maleeni compile statement.json -o statementc.json
 ```
 
 ### 3. Debug (Optional)

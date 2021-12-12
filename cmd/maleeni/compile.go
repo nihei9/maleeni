@@ -15,7 +15,6 @@ import (
 
 var compileFlags = struct {
 	debug   *bool
-	lexSpec *string
 	compLv  *int
 	output  *string
 }{}
@@ -25,17 +24,24 @@ func init() {
 		Use:     "compile",
 		Short:   "Compile a lexical specification into a DFA",
 		Long:    `compile takes a lexical specification and generates a DFA accepting the tokens described in the specification.`,
-		Example: `  cat lexspec.json | maleeni compile > clexspec.json`,
+		Example: `  Read from/Write to the specified file:
+    maleeni compile lexspec.json -o clexspec.json
+  Read from stdin and write to stdout:
+    cat lexspec.json | maleeni compile`,
+		Args:    cobra.MaximumNArgs(1),
 		RunE:    runCompile,
 	}
-	compileFlags.lexSpec = cmd.Flags().StringP("lex-spec", "l", "", "lexical specification file path (default stdin)")
 	compileFlags.compLv = cmd.Flags().Int("compression-level", compiler.CompressionLevelMax, "compression level")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")
 	rootCmd.AddCommand(cmd)
 }
 
 func runCompile(cmd *cobra.Command, args []string) (retErr error) {
-	lspec, err := readLexSpec(*compileFlags.lexSpec)
+	var path string
+	if len(args) > 0 {
+		path = args[0]
+	}
+	lspec, err := readLexSpec(path)
 	if err != nil {
 		return fmt.Errorf("Cannot read a lexical specification: %w", err)
 	}
