@@ -2,7 +2,7 @@
 
 maleeni is a lexer generator for golang. maleeni also provides a command to perform lexical analysis to allow easy debugging of your lexical specification.
 
-[![Test](https://github.com/nihei9/maleeni/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nihei9/maleeni/actions/workflows/test.yml)
+[![ci](https://github.com/nihei9/maleeni/actions/workflows/ci.yaml/badge.svg)](https://github.com/nihei9/maleeni/actions/workflows/ci.yaml)
 
 ## Installation
 

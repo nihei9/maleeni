@@ -207,7 +207,7 @@ func newConcatNode(left, right CPTree) *concatNode {
 }
 
 func (n *concatNode) String() string {
-	return fmt.Sprintf("concat")
+	return "concat"
 }
 
 func (n *concatNode) Range() (rune, rune, bool) {
@@ -258,7 +258,7 @@ func newAltNode(left, right CPTree) *altNode {
 }
 
 func (n *altNode) String() string {
-	return fmt.Sprintf("alt")
+	return "alt"
 }
 
 func (n *altNode) Range() (rune, rune, bool) {
@@ -419,6 +419,7 @@ func (n *fragmentNode) clone() CPTree {
 	return newFragmentNode(n.kind, n.tree.clone())
 }
 
+//nolint:unused
 func printCPTree(w io.Writer, t CPTree, ruledLine string, childRuledLinePrefix string) {
 	if t == nil {
 		return

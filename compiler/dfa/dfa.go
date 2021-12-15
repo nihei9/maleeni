@@ -47,7 +47,7 @@ type DFA struct {
 	TransitionTable      map[string][256]string
 }
 
-func GenDFA(root byteTree, symTab *symbolTable) *DFA {	
+func GenDFA(root byteTree, symTab *symbolTable) *DFA {
 	initialState := root.first()
 	initialStateHash := initialState.hash()
 	stateMap := map[string]*symbolPositionSet{

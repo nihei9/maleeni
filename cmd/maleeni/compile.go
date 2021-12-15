@@ -14,22 +14,22 @@ import (
 )
 
 var compileFlags = struct {
-	debug   *bool
-	compLv  *int
-	output  *string
+	debug  *bool
+	compLv *int
+	output *string
 }{}
 
 func init() {
 	cmd := &cobra.Command{
-		Use:     "compile",
-		Short:   "Compile a lexical specification into a DFA",
-		Long:    `compile takes a lexical specification and generates a DFA accepting the tokens described in the specification.`,
+		Use:   "compile",
+		Short: "Compile a lexical specification into a DFA",
+		Long:  `compile takes a lexical specification and generates a DFA accepting the tokens described in the specification.`,
 		Example: `  Read from/Write to the specified file:
     maleeni compile lexspec.json -o clexspec.json
   Read from stdin and write to stdout:
     cat lexspec.json | maleeni compile`,
-		Args:    cobra.MaximumNArgs(1),
-		RunE:    runCompile,
+		Args: cobra.MaximumNArgs(1),
+		RunE: runCompile,
 	}
 	compileFlags.compLv = cmd.Flags().Int("compression-level", compiler.CompressionLevelMax, "compression level")
 	compileFlags.output = cmd.Flags().StringP("output", "o", "", "output file path (default stdout)")

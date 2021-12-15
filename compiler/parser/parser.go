@@ -446,10 +446,7 @@ func genAnyCharAST() CPTree {
 }
 
 func isValidOrder(from, to rune) bool {
-	if from <= to {
-		return true
-	}
-	return false
+	return from <= to
 }
 
 func genConcatNode(cs ...CPTree) CPTree {

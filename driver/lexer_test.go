@@ -72,9 +72,9 @@ func newEOFTokenDefault() *Token {
 	return newEOFToken(ModeID(spec.LexModeIDDefault.Int()), spec.LexModeNameDefault.String())
 }
 
-func newInvalidToken(modeID ModeID, lexeme []byte) *Token {
+func newInvalidTokenDefault(lexeme []byte) *Token {
 	return &Token{
-		ModeID:     modeID,
+		ModeID:     ModeID(spec.LexModeIDDefault.Int()),
 		ModeKindID: 0,
 		Lexeme:     lexeme,
 		Invalid:    true,
@@ -769,6 +769,22 @@ func TestLexer_Next(t *testing.T) {
 			tokens: []*Token{
 				newTokenDefault(1, 1, []byte(`foo`)),
 				newTokenDefault(2, 2, []byte(`123`)),
+				newEOFTokenDefault(),
+			},
+		},
+		// The driver can continue lexical analysis even after it detects an invalid token.
+		{
+			lspec: &spec.LexSpec{
+				Name: "test",
+				Entries: []*spec.LexEntry{
+					newLexEntryDefaultNOP("lower", `[a-z]+`),
+				},
+			},
+			src: `foo123bar`,
+			tokens: []*Token{
+				newTokenDefault(1, 1, []byte(`foo`)),
+				newInvalidTokenDefault([]byte(`123`)),
+				newTokenDefault(1, 1, []byte(`bar`)),
 				newEOFTokenDefault(),
 			},
 		},

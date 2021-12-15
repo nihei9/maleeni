@@ -416,7 +416,7 @@ func (l *lexer) nextInCodePoint(c rune) (*token, error) {
 				return nil, err
 			}
 			if eof {
-				l.restore()
+				err := l.restore()
 				if err != nil {
 					return nil, err
 				}
@@ -471,7 +471,7 @@ func (l *lexer) nextInCharProp(c rune) (*token, error) {
 				return nil, err
 			}
 			if eof {
-				l.restore()
+				err := l.restore()
 				if err != nil {
 					return nil, err
 				}
@@ -512,7 +512,7 @@ func (l *lexer) nextInFragment(c rune) (*token, error) {
 				return nil, err
 			}
 			if eof {
-				l.restore()
+				err := l.restore()
 				if err != nil {
 					return nil, err
 				}

@@ -128,12 +128,6 @@ func TestByteTree(t *testing.T) {
 	}
 }
 
-func newRangeSymbolNodeWithPos(from, to byte, pos symbolPosition) *symbolNode {
-	n := newRangeSymbolNode(from, to)
-	n.pos = pos
-	return n
-}
-
 func newSymbolNodeWithPos(v byte, pos symbolPosition) *symbolNode {
 	n := newSymbolNode(v)
 	n.pos = pos
@@ -172,6 +166,9 @@ func TestFollowAndSymbolTable(t *testing.T) {
 	bt, symTab, err := ConvertCPTreeToByteTree(map[spec.LexModeKindID]parser.CPTree{
 		spec.LexModeKindIDMin: cpt,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	{
 		followTab := genFollowTable(bt)

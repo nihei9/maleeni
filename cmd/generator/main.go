@@ -93,6 +93,6 @@ func gen() error {
 		return err
 	}
 	defer f.Close()
-	fmt.Fprintf(f, b.String())
+	fmt.Fprint(f, b.String())
 	return nil
 }

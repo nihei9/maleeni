@@ -38,10 +38,7 @@ func (p symbolPosition) String() string {
 }
 
 func (p symbolPosition) isEndMark() bool {
-	if uint16(p)&symbolPositionMaskEndMark > 1 {
-		return true
-	}
-	return false
+	return uint16(p)&symbolPositionMaskEndMark > 1
 }
 
 func (p symbolPosition) describe() (uint16, bool) {
@@ -102,19 +99,6 @@ func (s *symbolPositionSet) merge(t *symbolPositionSet) *symbolPositionSet {
 	return s
 }
 
-func (s *symbolPositionSet) intersect(set *symbolPositionSet) *symbolPositionSet {
-	in := newSymbolPositionSet()
-	for _, p1 := range s.s {
-		for _, p2 := range set.s {
-			if p1 != p2 {
-				continue
-			}
-			in.add(p1)
-		}
-	}
-	return in
-}
-
 func (s *symbolPositionSet) hash() string {
 	if len(s.s) <= 0 {
 		return ""
@@ -171,9 +155,9 @@ func sortSymbolPositions(ps []symbolPosition, left, right int) {
 			p1, p2 = p2, p1
 		}
 		if p2 > p3 {
-			p2, p3 = p3, p2
+			p2 = p3
 			if p1 > p2 {
-				p1, p2 = p2, p1
+				p2 = p1
 			}
 		}
 		pivot = p2

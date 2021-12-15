@@ -153,7 +153,7 @@ func newConcatNode(left, right byteTree) *concatNode {
 }
 
 func (n *concatNode) String() string {
-	return fmt.Sprintf("concat")
+	return "concat"
 }
 
 func (n *concatNode) children() (byteTree, byteTree) {
@@ -207,7 +207,7 @@ func newAltNode(left, right byteTree) *altNode {
 }
 
 func (n *altNode) String() string {
-	return fmt.Sprintf("alt")
+	return "alt"
 }
 
 func (n *altNode) children() (byteTree, byteTree) {
@@ -255,7 +255,7 @@ func newRepeatNode(left byteTree) *repeatNode {
 }
 
 func (n *repeatNode) String() string {
-	return fmt.Sprintf("repeat")
+	return "repeat"
 }
 
 func (n *repeatNode) children() (byteTree, byteTree) {
@@ -288,14 +288,6 @@ func (n *repeatNode) clone() byteTree {
 	return newRepeatNode(n.left.clone())
 }
 
-func newRepeatOneOrMoreNode(left byteTree) *concatNode {
-	return newConcatNode(
-		left,
-		&repeatNode{
-			left: left.clone(),
-		})
-}
-
 type optionNode struct {
 	left      byteTree
 	firstMemo *symbolPositionSet
@@ -309,7 +301,7 @@ func newOptionNode(left byteTree) *optionNode {
 }
 
 func (n *optionNode) String() string {
-	return fmt.Sprintf("option")
+	return "option"
 }
 
 func (n *optionNode) children() (byteTree, byteTree) {
@@ -452,6 +444,7 @@ func oneOf(ts ...byteTree) byteTree {
 	return alt
 }
 
+//nolint:unused
 func printByteTree(w io.Writer, t byteTree, ruledLine string, childRuledLinePrefix string, withAttrs bool) {
 	if t == nil {
 		return
@@ -505,7 +498,10 @@ func ConvertCPTreeToByteTree(cpTrees map[spec.LexModeKindID]parser.CPTree) (byte
 		}
 		bt = oneOf(bt, concat(t, newEndMarkerNode(id)))
 	}
-	positionSymbols(bt, symbolPositionMin)
+	_, err := positionSymbols(bt, symbolPositionMin)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return bt, genSymbolTable(bt), nil
 }
