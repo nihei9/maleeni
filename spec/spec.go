@@ -256,10 +256,12 @@ func findSpellingInconsistenciesErrors(ids []string, hook func(ids []string) err
 
 	var errs []error
 	for _, dup := range duplicated {
-		err := hook(dup)
-		if err != nil {
-			errs = append(errs, err)
-			continue
+		if hook != nil {
+			err := hook(dup)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
 		}
 
 		var b strings.Builder
@@ -267,7 +269,7 @@ func findSpellingInconsistenciesErrors(ids []string, hook func(ids []string) err
 		for _, id := range dup[1:] {
 			fmt.Fprintf(&b, ", %+v", id)
 		}
-		err = fmt.Errorf("these identifiers are treated as the same. please use the same spelling: %v", b.String())
+		err := fmt.Errorf("these identifiers are treated as the same. please use the same spelling: %v", b.String())
 		errs = append(errs, err)
 	}
 

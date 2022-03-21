@@ -77,6 +77,118 @@ func TestCompile(t *testing.T) {
 `,
 			Err: true,
 		},
+		{
+			Caption: "don't allow kind names in the same mode to contain spelling inconsistencies",
+			Spec: `
+{
+    "name": "test",
+    "entries": [
+        {
+            "kind": "foo_1",
+            "pattern": "foo_1"
+        },
+        {
+            "kind": "foo1",
+            "pattern": "foo1"
+        }
+    ]
+}
+`,
+			Err: true,
+		},
+		{
+			Caption: "don't allow kind names across modes to contain spelling inconsistencies",
+			Spec: `
+{
+    "name": "test",
+    "entries": [
+        {
+            "modes": ["default"],
+            "kind": "foo_1",
+            "pattern": "foo_1"
+        },
+        {
+            "modes": ["other_mode"],
+            "kind": "foo1",
+            "pattern": "foo1"
+        }
+    ]
+}
+`,
+			Err: true,
+		},
+		{
+			Caption: "don't allow mode names to contain spelling inconsistencies",
+			Spec: `
+{
+    "name": "test",
+    "entries": [
+        {
+            "modes": ["foo_1"],
+            "kind": "a",
+            "pattern": "a"
+        },
+        {
+            "modes": ["foo1"],
+            "kind": "b",
+            "pattern": "b"
+        }
+    ]
+}
+`,
+			Err: true,
+		},
+		{
+			Caption: "allow fragment names in the same mode to contain spelling inconsistencies because fragments will not appear in output files",
+			Spec: `
+{
+    "name": "test",
+    "entries": [
+        {
+            "kind": "a",
+            "pattern": "a"
+        },
+        {
+            "fragment": true,
+            "kind": "foo_1",
+            "pattern": "foo_1"
+        },
+        {
+            "fragment": true,
+            "kind": "foo1",
+            "pattern": "foo1"
+        }
+    ]
+}
+`,
+		},
+		{
+			Caption: "allow fragment names across modes to contain spelling inconsistencies because fragments will not appear in output files",
+			Spec: `
+{
+    "name": "test",
+    "entries": [
+        {
+            "modes": ["default"],
+            "kind": "a",
+            "pattern": "a"
+        },
+        {
+            "modes": ["default"],
+            "fragment": true,
+            "kind": "foo_1",
+            "pattern": "foo_1"
+        },
+        {
+            "modes": ["other_mode"],
+            "fragment": true,
+            "kind": "foo1",
+            "pattern": "foo1"
+        }
+    ]
+}
+`,
+		},
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("#%v %s", i, tt.Caption), func(t *testing.T) {
