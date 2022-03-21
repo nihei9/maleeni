@@ -44,7 +44,9 @@ First, define your lexical specification in JSON format. As an example, let's wr
 }
 ```
 
-Save the above specification to a file in UTF-8. In this explanation, the file name is `statement.json`.
+Save the above specification to a file. In this explanation, the file name is `statement.json`.
+
+⚠️ The input file must be encoded in UTF-8.
 
 ### 2. Compile the lexical specification
 
@@ -77,18 +79,18 @@ $ echo -n 'The truth is out there.' | maleeni lex statementc.json | jq -r '[.kin
 
 The JSON format of tokens that `maleeni lex` command prints is as follows:
 
-| Field        | Type              | Description                                                                                                                                           |
-|--------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| mode_id      | integer           | An ID of a lex mode.                                                                                                                                  |
-| mode_name    | string            | A name of a lex mode.                                                                                                                                 |
-| kind_id      | integer           | An ID of a kind. This is unique among all modes.                                                                                                      |
-| mode_kind_id | integer           | An ID of a lexical kind. This is unique only within a mode. Note that you need to use `KindID` field if you want to identify a kind across all modes. |
-| kind_name    | string            | A name of a lexical kind.                                                                                                                             |
-| row          | integer           | A row number where a lexeme appears.                                                                                                                  |
-| col          | integer           | A column number where a lexeme appears. Note that `col` is counted in code points, not bytes.                                                         |
-| lexeme       | array of integers | A byte sequense of a lexeme.                                                                                                                          |
-| eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                       |
-| invalid      | bool              | When this field is `true`, it means the token is an error token.                                                                                      |
+| Field        | Type              | Description                                                                                                                                            |
+|--------------|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| mode_id      | integer           | An ID of a lex mode.                                                                                                                                   |
+| mode_name    | string            | A name of a lex mode.                                                                                                                                  |
+| kind_id      | integer           | An ID of a kind. This is unique among all modes.                                                                                                       |
+| mode_kind_id | integer           | An ID of a lexical kind. This is unique only within a mode. Note that you need to use `kind_id` field if you want to identify a kind across all modes. |
+| kind_name    | string            | A name of a lexical kind.                                                                                                                              |
+| row          | integer           | A row number where a lexeme appears.                                                                                                                   |
+| col          | integer           | A column number where a lexeme appears. Note that `col` is counted in code points, not bytes.                                                          |
+| lexeme       | array of integers | A byte sequense of a lexeme.                                                                                                                           |
+| eof          | bool              | When this field is `true`, it means the token is the EOF token.                                                                                        |
+| invalid      | bool              | When this field is `true`, it means the token is an error token.                                                                                       |
 
 ### 4. Generate the lexer
 
@@ -189,6 +191,7 @@ See [Identifier](#identifier) and [Regular Expression](#regular-expression) for 
 
 * `id` must be a lower snake case. It can contain only `a` to `z`, `0` to `9`, and `_`.
 * The first and last characters must be one of `a` to `z`.
+* `_` cannot appear consecutively.
 
 ## Regular Expression
 
@@ -196,14 +199,16 @@ See [Identifier](#identifier) and [Regular Expression](#regular-expression) for 
 
 ⚠️ In JSON, you need to write `\` as `\\`.
 
+⚠️ maleeni doesn't allow you to use some code points. See [Unavailable Code Points](#unavailable-code-points).
+
 ### Composites
 
 Concatenation and alternation allow you to combine multiple characters or multiple patterns into one pattern.
 
-| Example  | Description           |
-|----------|-----------------------|
-| abc      | matches just 'abc'    |
-| abc\|def | one of 'abc' or 'def' |
+| Pattern    | Matches        |
+|------------|----------------|
+| `abc`      | `abc`          |
+| `abc\|def` | `abc` or `def` |
 
 ### Single Characters
 
@@ -215,89 +220,98 @@ In addition to using ordinary characters, there are other ways to represent a si
 * character property expressions
 * escape sequences
 
+#### Dot Expression
+
 The dot expression matches any one chracter.
 
-| Example | Description       |
+| Pattern | Matches           |
 |---------|-------------------|
-| .       | any one character |
+| `.`     | any one character |
 
-The bracket expressions are represented by enclosing characters in `[ ]` or `[^ ]`. `[^ ]` is negation of `[ ]`. For instance, `[ab]` matches one of 'a' or 'b', and `[^ab]` matches any one character except 'a' and 'b'.
+#### Bracket Expressions
 
-| Example | Description                                      |
-|---------|--------------------------------------------------|
-| [abc]   | one of 'a', 'b', or 'c'                          |
-| [^abc]  | any one character except 'a', 'b', or 'c'        |
-| [a-z]   | one in the range of 'a' to 'z'                   |
-| [a-]    | 'a' or '-'                                       |
-| [-z]    | '-' or 'z'                                       |
-| [-]     | '-'                                              |
-| [^a-z]  | any one character except the range of 'a' to 'z' |
-| [a^]    | 'a' or '^'                                       |
+The bracket expressions are represented by enclosing characters in `[ ]` or `[^ ]`. `[^ ]` is negation of `[ ]`. For instance, `[ab]` matches one of `a` or `b`, and `[^ab]` matches any one character except `a` and `b`.
+
+| Pattern  | Matches                                          |
+|----------|--------------------------------------------------|
+| `[abc]`  | `a`, `b`, or `c`                                 |
+| `[^abc]` | any one character except `a`, `b`, and `c`       |
+| `[a-z]`  | one in the range of `a` to `z`                   |
+| `[a-]`   | `a` or `-`                                       |
+| `[-z]`   | `-` or `z`                                       |
+| `[-]`    | `-`                                              |
+| `[^a-z]` | any one character except the range of `a` to `z` |
+| `[a^]`   | `a` or `^`                                       |
+
+#### Code Point Expressions
 
 The code point expressions match a character that has a specified code point. The code points consists of a four or six digits hex string.
 
-| Example    | Description               |
-|------------|---------------------------|
-| \u{000A}   | U+0A (LF)                 |
-| \u{3042}   | U+3042 (hiragana あ)      |
-| \u{01F63A} | U+1F63A (grinning cat 😺) |
+| Pattern      | Matches                     |
+|--------------|-----------------------------|
+| `\u{000A}`   | U+000A (LF)                 |
+| `\u{3042}`   | U+3042 (hiragana `あ`)      |
+| `\u{01F63A}` | U+1F63A (grinning cat `😺`) |
+
+#### Character Property Expressions
 
 The character property expressions match a character that has a specified character property of the Unicode. Currently, maleeni supports `General_Category`, `Script`, `Alphabetic`, `Lowercase`, `Uppercase`, and `White_Space`. When you omitted the equal symbol and a right-side value, maleeni interprets a symbol in `\p{...}` as the `General_Category` value.
 
-| Example                     | Description                                        |
-|-----------------------------|----------------------------------------------------|
-| \p{General_Category=Letter} | any one character whose General_Category is Letter |
-| \p{gc=Letter}               | the same as \p{General_Category=Letter}            |
-| \p{Letter}                  | the same as \p{General_Category=Letter}            |
-| \p{l}                       | the same as \p{General_Category=Letter}            |
-| \p{Script=Latin}            | any one character whose Script is Latin            |
-| \p{Alphabetic}              | any one character whose Alphabetic is yes          |
-| \p{Lowercase=yes}           | any one character whose Lowercase is yes           |
-| \p{Uppercase=yes}           | any one character whose Uppercase is yes           |
-| \p{White_Space=yes}         | any one character whose White_Space is yes         |
-| \p{wspace=yes}              | the same as \p{White_Space=yes}                    |
+| Pattern                       | Matches                                                |
+|-------------------------------|--------------------------------------------------------|
+| `\p{General_Category=Letter}` | any one character whose `General_Category` is `Letter` |
+| `\p{gc=Letter}`               | the same as `\p{General_Category=Letter}`              |
+| `\p{Letter}`                  | the same as `\p{General_Category=Letter}`              |
+| `\p{l}`                       | the same as `\p{General_Category=Letter}`              |
+| `\p{Script=Latin}`            | any one character whose `Script` is `Latin`            |
+| `\p{Alphabetic=yes}`          | any one character whose `Alphabetic` is `yes`          |
+| `\p{Lowercase=yes}`           | any one character whose `Lowercase` is `yes`           |
+| `\p{Uppercase=yes}`           | any one character whose `Uppercase` is `yes`           |
+| `\p{White_Space=yes}`         | any one character whose `White_Space` is `yes`         |
+
+#### Escape Sequences
 
 As you escape the special character with `\`, you can write a rule that matches the special character itself.
 The following escape sequences are available outside of bracket expressions.
 
-| Example | Description |
-|---------|-------------|
-| \\.     | '.'         |
-| \\?     | '?'         |
-| \\*     | '*'         |
-| \\+     | '+'         |
-| \\(     | '('         |
-| \\)     | ')'         |
-| \\[     | '['         |
-| \\\|    | '\|'        |
-| \\\\    | '\\'        |
+| Pattern | Matches |
+|---------|---------|
+| `\\.`   | `.`     |
+| `\\?`   | `?`     |
+| `\\*`   | `*`     |
+| `\\+`   | `+`     |
+| `\\(`   | `(`     |
+| `\\)`   | `)`     |
+| `\\[`   | `[`     |
+| `\\\|`  | `\|`    |
+| `\\\\`  | `\\`    |
 
 The following escape sequences are available inside bracket expressions.
 
-| Example | Description |
-|---------|-------------|
-| \\^     | '^'         |
-| \\-     | '-'         |
-| \\]     | ']'         |
+| Pattern | Matches |
+|---------|---------|
+| `\\^`   | `^`     |
+| `\\-`   | `-`     |
+| `\\]`   | `]`     |
 
 ### Repetitions
 
 The repetitions match a string that repeats the previous single character or group.
 
-| Example | Description      |
+| Pattern | Matches          |
 |---------|------------------|
-| a*      | zero or more 'a' |
-| a+      | one or more 'a'  |
-| a?      | zero or one 'a'  |
+| `a*`    | zero or more `a` |
+| `a+`    | one or more `a`  |
+| `a?`    | zero or one `a`  |
 
 ### Grouping
 
 `(` and `)` groups any patterns.
 
-| Example   | Description                                            |
-|-----------|--------------------------------------------------------|
-| a(bc)*d   | matches 'ad', 'abcd', 'abcbcd', and so on              |
-| (ab\|cd)+ | matches 'ab', 'cd', 'abcd', 'cdab', abcdab', and so on |
+| Pattern     | Matches                                         |
+|-------------|-------------------------------------------------|
+| `a(bc)*d`   | `ad`, `abcd`, `abcbcd`, and so on               |
+| `(ab\|cd)+` | `ab`, `cd`, `abcd`, `cdab`, `abcdab`, and so on |
 
 ### Fragment
 
@@ -333,6 +347,14 @@ For instance, you can define [an identifier of golang](https://golang.org/ref/sp
     ]
 }
 ```
+
+### Unavailable Code Points
+
+Lexical specifications and source files to be analyzed cannot contain the following code points.
+
+When you write a pattern that implicitly contains the unavailable code points, maleeni will automatically generate a pattern that doesn't contain the unavailable code points and replaces the original pattern. However, when you explicitly use the unavailable code points (like `\u{U+D800}` or `\p{General_Category=Cs}`), maleeni will occur an error.
+
+* surrogate code points: U+D800..U+DFFF
 
 ## Lex Mode
 
@@ -399,3 +421,7 @@ $ echo -n '"foo\nbar"foo' | maleeni lex stringc.json | jq -r '[.mode_name, .kind
 ```
 
 The input string enclosed in the `"` mark (`foo\nbar`) are interpreted as the `char_seq` and the `escaped_char`, while the outer string (`foo`) is interpreted as the `identifier`. The same string `foo` is interpreted as different types because of the different modes in which they are interpreted.
+
+## Unicode Version
+
+maleeni references [Unicode 13.0.0](https://unicode.org/versions/Unicode13.0.0/).
