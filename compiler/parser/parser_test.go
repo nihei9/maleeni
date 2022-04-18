@@ -444,16 +444,18 @@ func TestParse(t *testing.T) {
 			syntaxError: synErrBExpNoElem,
 		},
 		{
-			pattern:     "[^a-z]",
-			skipTestAST: true,
+			pattern: "[^\\u{004E}]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, '\u004E'-1),
+				newRangeSymbolNode('\u004E'+1, 0x10FFFF),
+			),
 		},
 		{
-			pattern:     "[^\\u{004E}]",
-			skipTestAST: true,
-		},
-		{
-			pattern:     "[^\\u{0061}-\\u{007A}]",
-			skipTestAST: true,
+			pattern: "[^\\u{0061}-\\u{007A}]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, '\u0061'-1),
+				newRangeSymbolNode('\u007A'+1, 0x10FFFF),
+			),
 		},
 		{
 			pattern:     "[^\\p{Lu}]",
@@ -599,6 +601,37 @@ func TestParse(t *testing.T) {
 			ast: genAltNode(
 				newRangeSymbolNode(0x00, 0x2C),
 				newRangeSymbolNode(0x2E, 0x10FFFF),
+			),
+		},
+		{
+			pattern: "[^01]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, '0'-1),
+				newRangeSymbolNode('1'+1, 0x10FFFF),
+			),
+		},
+		{
+			pattern: "[^10]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, '0'-1),
+				newRangeSymbolNode('1'+1, 0x10FFFF),
+			),
+		},
+		{
+			pattern: "[^a-z]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, 'a'-1),
+				newRangeSymbolNode('z'+1, 0x10FFFF),
+			),
+		},
+		{
+			pattern: "[^az]",
+			ast: genAltNode(
+				newRangeSymbolNode(0x00, 'a'-1),
+				genAltNode(
+					newRangeSymbolNode('a'+1, 'z'-1),
+					newRangeSymbolNode('z'+1, 0x10FFFF),
+				),
 			),
 		},
 		{
@@ -966,6 +999,365 @@ func TestParse_ContributoryPropertyIsNotExposed(t *testing.T) {
 			if root != nil {
 				t.Fatalf("tree is not nil")
 			}
+		})
+	}
+}
+
+func TestExclude(t *testing.T) {
+	for _, test := range []struct {
+		caption string
+		target  CPTree
+		base    CPTree
+		result  CPTree
+	}{
+		// t.From > b.From && t.To < b.To
+
+		// |t.From - b.From| = 1
+		// |b.To - t.To| = 1
+		//
+		//     Target (t):    +--+
+		//       Base (b): +--+--+--+
+		// Result (b - t): +--+  +--+
+		{
+			caption: "|t.From - b.From| = 1 && |b.To - t.To| = 1",
+			target:  newSymbolNode('1'),
+			base:    newRangeSymbolNode('0', '2'),
+			result: newAltNode(
+				newSymbolNode('0'),
+				newSymbolNode('2'),
+			),
+		},
+		// |t.From - b.From| > 1
+		// |b.To - t.To| > 1
+		//
+		//     Target (t):       +--+
+		//       Base (b): +--+--+--+--+--+
+		// Result (b - t): +--+--+  +--+--+
+		{
+			caption: "|t.From - b.From| > 1 && |b.To - t.To| > 1",
+			target:  newSymbolNode('2'),
+			base:    newRangeSymbolNode('0', '4'),
+			result: newAltNode(
+				newRangeSymbolNode('0', '1'),
+				newRangeSymbolNode('3', '4'),
+			),
+		},
+
+		// t.From <= b.From && t.To >= b.From && t.To < b.To
+
+		// |b.From - t.From| = 0
+		// |t.To - b.From| = 0
+		// |b.To - t.To| = 1
+		//
+		//     Target (t): +--+
+		//       Base (b): +--+--+
+		// Result (b - t):    +--+
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.From| = 0 && |b.To - t.To| = 1",
+			target:  newSymbolNode('0'),
+			base:    newRangeSymbolNode('0', '1'),
+			result:  newSymbolNode('1'),
+		},
+		// |b.From - t.From| = 0
+		// |t.To - b.From| = 0
+		// |b.To - t.To| > 1
+		//
+		//     Target (t): +--+
+		//       Base (b): +--+--+--+
+		// Result (b - t):    +--+--+
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.From| = 0 && |b.To - t.To| > 1",
+			target:  newSymbolNode('0'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newRangeSymbolNode('1', '2'),
+		},
+		// |b.From - t.From| = 0
+		// |t.To - b.From| > 0
+		// |b.To - t.To| = 1
+		//
+		//     Target (t): +--+--+
+		//       Base (b): +--+--+--+
+		// Result (b - t):       +--+
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.From| > 0 && |b.To - t.To| = 1",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newSymbolNode('2'),
+		},
+		// |b.From - t.From| = 0
+		// |t.To - b.From| > 0
+		// |b.To - t.To| > 1
+		//
+		//     Target (t): +--+--+
+		//       Base (b): +--+--+--+--+
+		// Result (b - t):       +--+--+
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.From| > 0 && |b.To - t.To| > 1",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newRangeSymbolNode('0', '3'),
+			result:  newRangeSymbolNode('2', '3'),
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.From| = 0
+		// |b.To - t.To| = 1
+		//
+		//     Target (t): +--+--+
+		//       Base (b):    +--+--+
+		// Result (b - t):       +--+
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.From| = 0 && |b.To - t.To| = 1",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newRangeSymbolNode('1', '2'),
+			result:  newSymbolNode('2'),
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.From| = 0
+		// |b.To - t.To| > 1
+		//
+		//     Target (t): +--+--+
+		//       Base (b):    +--+--+--+
+		// Result (b - t):       +--+--+
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.From| = 0 && |b.To - t.To| > 1",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newRangeSymbolNode('1', '3'),
+			result:  newRangeSymbolNode('2', '3'),
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.From| > 0
+		// |b.To - t.To| = 1
+		//
+		//     Target (t): +--+--+--+
+		//       Base (b):    +--+--+--+
+		// Result (b - t):          +--+
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.From| > 0 && |b.To - t.To| = 1",
+			target:  newRangeSymbolNode('0', '2'),
+			base:    newRangeSymbolNode('1', '3'),
+			result:  newSymbolNode('3'),
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.From| > 0
+		// |b.To - t.To| > 1
+		//
+		//     Target (t): +--+--+--+
+		//       Base (b):    +--+--+--+--+
+		// Result (b - t):          +--+--+
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.From| > 0 && |b.To - t.To| > 1",
+			target:  newRangeSymbolNode('0', '2'),
+			base:    newRangeSymbolNode('1', '4'),
+			result:  newRangeSymbolNode('3', '4'),
+		},
+
+		// t.From > b.From && t.From <= b.To && t.To >= b.To
+
+		// |t.From - b.From| = 1
+		// |b.To - t.From| = 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t):    +--+
+		//       Base (b): +--+--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.From - b.From| = 1 && |b.To - t.From| = 0 && |t.To - b.To| = 0",
+			target:  newSymbolNode('1'),
+			base:    newRangeSymbolNode('0', '1'),
+			result:  newSymbolNode('0'),
+		},
+		// |t.From - b.From| = 1
+		// |b.To - t.From| = 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t):    +--+--+
+		//       Base (b): +--+--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.From - b.From| = 1 && |b.To - t.From| = 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('1', '2'),
+			base:    newRangeSymbolNode('0', '1'),
+			result:  newSymbolNode('0'),
+		},
+		// |t.From - b.From| = 1
+		// |b.To - t.From| > 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t):    +--+--+
+		//       Base (b): +--+--+--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.From - b.From| = 1 && |b.To - t.From| > 0 && |t.To - b.To| = 0",
+			target:  newRangeSymbolNode('1', '2'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newSymbolNode('0'),
+		},
+		// |t.From - b.From| = 1
+		// |b.To - t.From| > 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t):    +--+--+--+
+		//       Base (b): +--+--+--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.From - b.From| = 1 && |b.To - t.From| > 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('1', '3'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newSymbolNode('0'),
+		},
+		// |t.From - b.From| > 1
+		// |b.To - t.From| = 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t):       +--+
+		//       Base (b): +--+--+--+
+		// Result (b - t): +--+--+
+		{
+			caption: "|t.From - b.From| > 1 && |b.To - t.From| = 0 && |t.To - b.To| = 0",
+			target:  newSymbolNode('2'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newRangeSymbolNode('0', '1'),
+		},
+		// |t.From - b.From| > 1
+		// |b.To - t.From| = 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t):       +--+--+
+		//       Base (b): +--+--+--+
+		// Result (b - t): +--+--+
+		{
+			caption: "|t.From - b.From| > 1 && |b.To - t.From| = 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('2', '3'),
+			base:    newRangeSymbolNode('0', '2'),
+			result:  newRangeSymbolNode('0', '1'),
+		},
+		// |t.From - b.From| > 1
+		// |b.To - t.From| > 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t):       +--+--+
+		//       Base (b): +--+--+--+--+
+		// Result (b - t): +--+--+
+		{
+			caption: "|t.From - b.From| > 1 && |b.To - t.From| > 0 && |t.To - b.To| = 0",
+			target:  newRangeSymbolNode('2', '3'),
+			base:    newRangeSymbolNode('0', '3'),
+			result:  newRangeSymbolNode('0', '1'),
+		},
+		// |t.From - b.From| > 1
+		// |b.To - t.From| > 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t):       +--+--+--+
+		//       Base (b): +--+--+--+--+
+		// Result (b - t): +--+--+
+		{
+			caption: "|t.From - b.From| > 1 && |b.To - t.From| > 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('2', '4'),
+			base:    newRangeSymbolNode('0', '3'),
+			result:  newRangeSymbolNode('0', '1'),
+		},
+
+		// t.From <= b.From && t.To >= b.To
+
+		// |b.From - t.From| = 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t): +--+
+		//       Base (b): +--+
+		// Result (b - t): N/A
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.To| = 0",
+			target:  newSymbolNode('0'),
+			base:    newSymbolNode('0'),
+			result:  nil,
+		},
+		// |b.From - t.From| = 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t): +--+--+
+		//       Base (b): +--+
+		// Result (b - t): N/A
+		{
+			caption: "|b.From - t.From| = 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newSymbolNode('0'),
+			result:  nil,
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.To| = 0
+		//
+		//     Target (t): +--+--+
+		//       Base (b):    +--+
+		// Result (b - t): N/A
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.To| = 0",
+			target:  newRangeSymbolNode('0', '1'),
+			base:    newSymbolNode('1'),
+			result:  nil,
+		},
+		// |b.From - t.From| > 0
+		// |t.To - b.To| > 0
+		//
+		//     Target (t): +--+--+--+
+		//       Base (b):    +--+
+		// Result (b - t): N/A
+		{
+			caption: "|b.From - t.From| > 0 && |t.To - b.To| > 0",
+			target:  newRangeSymbolNode('0', '2'),
+			base:    newSymbolNode('1'),
+			result:  nil,
+		},
+
+		// Others
+
+		// |b.From - t.From| = 1
+		//
+		//     Target (t): +--+
+		//       Base (b):    +--+
+		// Result (b - t):    +--+
+		{
+			caption: "|b.From - t.From| = 1",
+			target:  newSymbolNode('0'),
+			base:    newSymbolNode('1'),
+			result:  newSymbolNode('1'),
+		},
+		// |b.From - t.From| > 1
+		//
+		//     Target (t): +--+
+		//       Base (b):       +--+
+		// Result (b - t):       +--+
+		{
+			caption: "|b.From - t.From| > 1",
+			target:  newSymbolNode('0'),
+			base:    newSymbolNode('2'),
+			result:  newSymbolNode('2'),
+		},
+		// |t.To - b.To| = 1
+		//
+		//     Target (t):    +--+
+		//       Base (b): +--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.To - b.To| = 1",
+			target:  newSymbolNode('1'),
+			base:    newSymbolNode('0'),
+			result:  newSymbolNode('0'),
+		},
+		// |t.To - b.To| > 1
+		//
+		//     Target (t):       +--+
+		//       Base (b): +--+
+		// Result (b - t): +--+
+		{
+			caption: "|t.To - b.To| > 1",
+			target:  newSymbolNode('2'),
+			base:    newSymbolNode('0'),
+			result:  newSymbolNode('0'),
+		},
+	} {
+		t.Run(test.caption, func(t *testing.T) {
+			r := exclude(test.target, test.base)
+			testAST(t, test.result, r)
 		})
 	}
 }

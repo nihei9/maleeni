@@ -427,9 +427,9 @@ func exclude(symbol, base CPTree) CPTree {
 				newRangeSymbolNode(bFrom, sFrom-1),
 				newRangeSymbolNode(sTo+1, bTo),
 			)
-		case sFrom <= bFrom && sTo > bFrom && sTo < bTo:
+		case sFrom <= bFrom && sTo >= bFrom && sTo < bTo:
 			return newRangeSymbolNode(sTo+1, bTo)
-		case sFrom < bFrom && sFrom < bTo && sTo >= bTo:
+		case sFrom > bFrom && sFrom <= bTo && sTo >= bTo:
 			return newRangeSymbolNode(bFrom, sFrom-1)
 		case sFrom <= bFrom && sTo >= bTo:
 			return nil
