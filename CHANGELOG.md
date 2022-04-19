@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.1
+
+* [#5](https://github.com/nihei9/maleeni/issues/5), [ec2233e](https://github.com/nihei9/maleeni/commit/ec2233e894245aa963598dcc4f7e144a4c6c3192) - Avoid panic on spelling inconsistencies errors.
+* [#7](https://github.com/nihei9/maleeni/issues/7), [bff52b5](https://github.com/nihei9/maleeni/commit/bff52b5cfbe3701f37f73c57ff81249f8d647174) - Fix the calculation of inverse bracket expressions.
+
+[Changes](https://github.com/nihei9/maleeni/compare/v0.6.0...v0.6.1)
+
 ## v0.6.0
 
 * [12bfeb8](12bfeb83ae4a804d05c7f6eab5c6b2b972b7d8d2) - Refactor the UCD file parsers.
